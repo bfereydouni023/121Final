@@ -1,9 +1,13 @@
 ## Introducing the team
 
 Tools Lead: Ben Fereydouni
+
 Engine Lead: Cole Falxa-Sturken
+
 Design Lead: Jason Cho
+
 Testing Lead: Jason Cho
+
 
 ## Tools and materials
 
