@@ -16,5 +16,11 @@
     "overrides": {
       "vite": "npm:rolldown-vite@7.2.5"
     }
+  },
+  "dependencies": {
+    "@dimforge/rapier3d": "^0.19.3",
+    "howler": "^2.2.4",
+    "postprocessing": "^6.38.0",
+    "three": "^0.181.2"
   }
 }

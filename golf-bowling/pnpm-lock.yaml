@@ -10,6 +10,19 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@dimforge/rapier3d':
+        specifier: ^0.19.3
+        version: 0.19.3
+      howler:
+        specifier: ^2.2.4
+        version: 2.2.4
+      postprocessing:
+        specifier: ^6.38.0
+        version: 6.38.0(three@0.181.2)
+      three:
+        specifier: ^0.181.2
+        version: 0.181.2
     devDependencies:
       typescript:
         specifier: ~5.9.3
@@ -19,6 +32,9 @@ importers:
         version: rolldown-vite@7.2.5
 
 packages:
+
+  '@dimforge/rapier3d@0.19.3':
+    resolution: {integrity: sha512-tkD1tvHTDML0W9s9rUYAsx0btO9LbVTnMBKJWVgOsas5haGFbYY+pzr5hbwYysv/IJmgmMrIFoVWIcsaCUE9ow==}
 
   '@emnapi/core@1.7.1':
     resolution: {integrity: sha512-o1uhUASyo921r2XtHYOHy7gdkGLge8ghBEQHMWmyJFoXlpU58kIrhhN3w26lpQb6dspetweapMn2CSNwQ8I4wg==}
@@ -146,6 +162,9 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  howler@2.2.4:
+    resolution: {integrity: sha512-iARIBPgcQrwtEr+tALF+rapJ8qSc+Set2GJQl7xT1MQzWaVkFebdJhR3alVlSiUf5U7nAANKuj3aWpwerocD5w==}
+
   lightningcss-android-arm64@1.30.2:
     resolution: {integrity: sha512-BH9sEdOCahSgmkVhBLeU7Hc9DWeZ1Eb6wNS6Da8igvUwAe0sqROHddIlvU06q3WyXVEOYDZ6ykBZQnjTbmo4+A==}
     engines: {node: '>= 12.0.0'}
@@ -232,6 +251,11 @@ packages:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
+  postprocessing@6.38.0:
+    resolution: {integrity: sha512-tisx8XN/PWTL3uXz2mt8bjlMS1wiOUSCK3ixi4zjwUCFmP8XW8hNhXwrxwd2zf2VmCyCQ3GUaLm7GLnkkBbDsQ==}
+    peerDependencies:
+      three: '>= 0.157.0 < 0.182.0'
+
   rolldown-vite@7.2.5:
     resolution: {integrity: sha512-u09tdk/huMiN8xwoiBbig197jKdCamQTtOruSalOzbqGje3jdHiV0njQlAW0YvzoahkirFePNQ4RYlfnRQpXZA==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -281,6 +305,9 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
+  three@0.181.2:
+    resolution: {integrity: sha512-k/CjiZ80bYss6Qs7/ex1TBlPD11whT9oKfT8oTGiHa34W4JRd1NiH/Tr1DbHWQ2/vMUypxksLnF2CfmlmM5XFQ==}
+
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
@@ -294,6 +321,8 @@ packages:
     hasBin: true
 
 snapshots:
+
+  '@dimforge/rapier3d@0.19.3': {}
 
   '@emnapi/core@1.7.1':
     dependencies:
@@ -382,6 +411,8 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  howler@2.2.4: {}
+
   lightningcss-android-arm64@1.30.2:
     optional: true
 
@@ -443,6 +474,10 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
+  postprocessing@6.38.0(three@0.181.2):
+    dependencies:
+      three: 0.181.2
+
   rolldown-vite@7.2.5:
     dependencies:
       '@oxc-project/runtime': 0.97.0
@@ -476,6 +511,8 @@ snapshots:
       '@rolldown/binding-win32-x64-msvc': 1.0.0-beta.50
 
   source-map-js@1.2.1: {}
+
+  three@0.181.2: {}
 
   tinyglobby@0.2.15:
     dependencies:
