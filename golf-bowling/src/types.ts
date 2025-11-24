@@ -1,4 +1,4 @@
-import { RigidBody, RigidBodyDesc, RigidBodyType} from "@dimforge/rapier3d-compat";
+import { Collider, ColliderDesc, RigidBody, RigidBodyDesc, RigidBodyType} from "@dimforge/rapier3d-compat";
 import * as Globals from './globals.ts';
 import { Material, Mesh } from "three";
 
@@ -8,77 +8,18 @@ export interface Vector3 {
     z: number;
 }
 
-export class GameObject {
-    // Cache for Transform component
-    private transform: TransformComponent | null = null;
-    constructor(private id: string, private components: Component[] = []) {}
-
-    /**
-     * @returns The added component
-     * @throws Error if there is a circular dependency detected
-     */
-    addComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T {
-        // Check and resolve dependencies
-        const component = new componentType(this);
-        const deps = component.dependencies || [];
-        for (const dep of deps) {
-            if (!this.getComponent(dep)) {
-                if (dep === componentType) {
-                    throw new Error(`Circular dependency detected for component ${componentType.name}`);
-                }
-                this.addComponent(dep);
-            }
-        }
-
-        this.components.push(component);
-        if (component instanceof TransformComponent) {
-            this.transform = component;
-        }
-        return component;
-    }
-
-    getComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T | null {
-        if ((componentType as any) === TransformComponent && this.transform) {
-            return this.transform as any as T;
-        }
-        for (const component of this.components) {
-            if (component instanceof componentType) {
-                return component as T;
-            }
-        }
-        return null;
-    }
-
-    getComponents<T extends Component>(componentType: new (gameObject: GameObject) => T): T[] {
-        const foundComponents: T[] = [];
-        for (const component of this.components) {
-            if (component instanceof componentType) {
-                foundComponents.push(component as T);
-            }
-        }
-        return foundComponents;
-    }
-
-    /**
-     * Removes all components of the specified component class from this game object.
-     * Note: This method does not check for dependencies between components.
-     */
-    removeComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): void {
-        const removedComponents = this.components.filter(component => (component instanceof componentType));
-        this.components = this.components.filter(component => !(component instanceof componentType));
-        for (const component of removedComponents) {
-            component.dispose?.();
-        }
-    }
-
-    destroy() {
-        for (const component of this.components) {
-            component.dispose?.();
-        }
-        this.components = [];
-        this.transform = null;
-    }
+export interface GameObject {
+    id: string;
+    transform: TransformComponent | null;
+    components: Component[];
+    addComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T;
+    getComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T | null;
+    getComponents<T extends Component>(componentType: new (gameObject: GameObject) => T): T[];
+    removeComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): void;
+    destroy(): void;
 }
+
+
 
 export interface Component {
     dependencies: (new (gameObject: GameObject) => Component)[];
@@ -116,6 +57,7 @@ export class RigidbodyComponent extends BaseComponent {
     mass: number = 1;
     velocity: Vector3 = { x: 0, y: 0, z: 0 };
     private _rigidbodyInstance: RigidBody;
+    private _collider: Collider;
 
     get rigidbodyType(): "dynamic" | "static" | "kinematic" {
         switch (this._rigidbodyInstance.bodyType()) {
@@ -149,7 +91,8 @@ export class RigidbodyComponent extends BaseComponent {
     constructor(gameObject: GameObject) {
         super(gameObject);
         const desc = new RigidBodyDesc(RigidBodyType.Dynamic);
-        this._rigidbodyInstance = Globals.world.createRigidBody(desc); // Rigidbody initialization
+        this._rigidbodyInstance = Globals.world.createRigidBody(desc);
+        this._collider = Globals.world.createCollider(ColliderDesc.ball(5), this._rigidbodyInstance);
     }
 
     dispose() {
