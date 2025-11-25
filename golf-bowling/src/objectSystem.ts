@@ -1,5 +1,5 @@
 import { TransformComponent } from "./components.ts";
-import type { Component, GameObject } from "./types.ts";
+import type { Component, GameObject, SingletonComponent } from "./types.ts";
 
 class GameObjectImpl implements GameObject {
     // Cache for Transform component
@@ -94,6 +94,7 @@ const objects: Array<GameObject> = []
 const components = {
     physics: new Array<Component>(),
     render: new Array<Component>(),
+    singleton: new Set<SingletonComponent>(),
 }
 
 export function getActivePhysicsComponents(): Array<Component> {
@@ -156,4 +157,46 @@ function removeComponentsFromLists(componentsToRemove: Array<Component>): void {
     const renderSet = new Set(componentsToRemove.filter(c => c.renderUpdate));
     components.physics = components.physics.filter(c => !physicsSet.has(c));
     components.render = components.render.filter(c => !renderSet.has(c));
+}
+
+export function createSingletonComponent<T extends SingletonComponent>(component: T): T {
+    if (components.singleton.has(component)) {
+        return component;
+    }
+    component.create?.();
+    components.singleton.add(component);
+    if (component.physicsUpdate) {
+        components.physics.push(component as unknown as Component);
+    }
+    if (component.renderUpdate) {
+        components.render.push(component as unknown as Component);
+    }
+    return component;
+}
+
+export function destroySingletonComponent<T extends SingletonComponent>(component: T): void {
+    if (!components.singleton.has(component)) return;
+    component.dispose?.();
+    components.singleton.delete(component);
+    if (component.physicsUpdate) {
+        const index = components.physics.indexOf(component as unknown as Component);
+        if (index !== -1) {
+            components.physics.splice(index, 1);
+        }
+    }
+    if (component.renderUpdate) {
+        const index = components.render.indexOf(component as unknown as Component);
+        if (index !== -1) {
+            components.render.splice(index, 1);
+        }
+    }
+}
+
+export function getSingletonComponent<T extends SingletonComponent>(componentType: new () => T): T | null {
+    for (const component of components.singleton) {
+        if (component instanceof componentType) {
+            return component as T;
+        }
+    }
+    return null;
 }

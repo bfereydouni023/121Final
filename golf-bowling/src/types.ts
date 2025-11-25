@@ -3,6 +3,11 @@ export interface Vector3 {
     y: number;
     z: number;
 }
+export interface Transform {
+    position: Vector3;
+    rotation: Vector3;
+    scale: Vector3;
+}
 
 export interface GameObject {
     id: string;
@@ -18,6 +23,13 @@ export interface GameObject {
 export interface Component {
     dependencies: (new (gameObject: GameObject) => Component)[];
     get gameObject(): GameObject;
+    create?(): void;
+    renderUpdate?(deltaTime: number): void;
+    physicsUpdate?(deltaTime: number): void;
+    dispose?(): void;
+}
+
+export interface SingletonComponent {
     create?(): void;
     renderUpdate?(deltaTime: number): void;
     physicsUpdate?(deltaTime: number): void;

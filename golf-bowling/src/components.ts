@@ -31,56 +31,38 @@ export class RigidbodyComponent extends BaseComponent {
     dependencies = [TransformComponent];
     mass: number = 1;
     velocity: Vector3 = { x: 0, y: 0, z: 0 };
-    private _rigidbodyInstance: RigidBody;
+    public rigidbody: RigidBody;
     private _collider: Collider;
-
-    get rigidbodyType(): "dynamic" | "static" | "kinematic" {
-        switch (this._rigidbodyInstance.bodyType()) {
-            case RigidBodyType.Dynamic:
-                return 'dynamic';
-            case RigidBodyType.Fixed:
-                return 'static';
-            case RigidBodyType.KinematicPositionBased:
-                return 'kinematic';
-            default:
-                throw new Error("Unknown rigidbody type");
-        }
-    }
-
-    set rigidbodyType(value: "dynamic" | "static" | "kinematic") {
-        let bodyType: RigidBodyType;
-        switch (value) {
-            case 'dynamic':
-                bodyType = RigidBodyType.Dynamic;
-                break;
-            case 'static':
-                bodyType = RigidBodyType.Fixed;
-                break;
-            case 'kinematic':
-                bodyType = RigidBodyType.KinematicPositionBased;
-                break;
-        }
-        this._rigidbodyInstance.setBodyType(bodyType, true);
+    get collider(): Collider {
+        return this._collider;
     }
 
     constructor(gameObject: GameObject) {
         super(gameObject);
         const desc = new RigidBodyDesc(RigidBodyType.Dynamic);
-        this._rigidbodyInstance = Globals.world.createRigidBody(desc);
-        this._collider = Globals.world.createCollider(ColliderDesc.ball(5), this._rigidbodyInstance);
+        this.rigidbody = Globals.world.createRigidBody(desc);
+        this._collider = Globals.world.createCollider(ColliderDesc.ball(5), this.rigidbody);
     }
 
     dispose() {
-        Globals.world.removeRigidBody(this._rigidbodyInstance);
+        Globals.world.removeRigidBody(this.rigidbody);
     }
 
     physicsUpdate(_deltaTime: number): void {
-        const translation = this._rigidbodyInstance.translation();
+        const translation = this.rigidbody.translation();
         this.gameObject.getComponent(TransformComponent)!.position = { ...translation };
     }
 
     addCollider(colliderDesc: ColliderDesc) {
-        this._collider = Globals.world.createCollider(colliderDesc, this._rigidbodyInstance);
+        this.removeCollider();
+        this._collider = Globals.world.createCollider(colliderDesc, this.rigidbody);
+    }
+
+    removeCollider() {
+        if (this._collider) {
+            Globals.world.removeCollider(this._collider, true);
+            this._collider = undefined!;
+        }
     }
 }
 
@@ -126,6 +108,11 @@ export class CameraComponent extends BaseComponent {
     constructor(gameObject: GameObject) {
         super(gameObject);
         this.camera = new Camera();
+    }
+    renderUpdate(_deltaTime: number): void {
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        this.camera.position.set(transform.position.x, transform.position.y, transform.position.z);
+        this.camera.rotation.set(transform.rotation.x, transform.rotation.y, transform.rotation.z);
     }
 }
 
