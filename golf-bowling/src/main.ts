@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import './style.css';
 import * as RAPIER from '@dimforge/rapier3d-compat';
 import { renderer, setRenderer, setWorld, world } from './globals';
+import { getActivePhysicsComponents, getActiveRenderComponents } from './objectSystem';
 
 // Ensure Rapier is loaded before proceeding
 await RAPIER.init();
@@ -25,12 +26,20 @@ document.body.appendChild(renderer.domElement);
 
 function renderUpdate() {
     const _delta = renderClock.getDelta();
+    let components = getActiveRenderComponents();
+    for (let i = 0; i < components.length; i++) {
+        components[i].renderUpdate!(_delta);
+    }
     renderer.render(scene, camera);
 }
 
 function physicsUpdate() {
     // Physics update logic goes here
     const _delta = physicsClock.getDelta();
+    let components = getActivePhysicsComponents();
+    for (let i = 0; i < components.length; i++) {
+        components[i].physicsUpdate!(_delta);
+    }
     world.step(physicsEventQueue);
 }
 

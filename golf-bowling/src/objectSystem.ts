@@ -1,10 +1,24 @@
-import { TransformComponent } from "./types";
+import { TransformComponent } from "./components.ts";
 import type { Component, GameObject } from "./types.ts";
 
 class GameObjectImpl implements GameObject {
     // Cache for Transform component
-    public transform: TransformComponent | null = null;
-    constructor(public id: string, public components: Component[] = []) {}
+    private transform: TransformComponent | null = null;
+    private components: Component[] = [];
+    private _active: boolean = true;
+    set active(value: boolean) {
+        if (this._active === false && value === true) {
+            addComponentsToLists(this.components);
+        }
+        else if (this._active === true && value === false) {
+            removeComponentsFromLists(this.components);
+        }
+        this._active = value;
+    }
+    get active(): boolean {
+        return this._active;
+    }
+    constructor(public id: string) {}
 
     /**
      * @returns The added component
@@ -27,6 +41,8 @@ class GameObjectImpl implements GameObject {
         if (component instanceof TransformComponent) {
             this.transform = component;
         }
+        addComponentToLists(component);
+        component.create?.();
         return component;
     }
 
@@ -61,10 +77,11 @@ class GameObjectImpl implements GameObject {
         this.components = this.components.filter(component => !(component instanceof componentType));
         for (const component of removedComponents) {
             component.dispose?.();
+            removeComponentFromLists(component);
         }
     }
 
-    destroy() {
+    dispose() {
         for (const component of this.components) {
             component.dispose?.();
         }
@@ -74,6 +91,18 @@ class GameObjectImpl implements GameObject {
 }
 
 const objects: Array<GameObject> = []
+const components = {
+    physics: new Array<Component>(),
+    render: new Array<Component>(),
+}
+
+export function getActivePhysicsComponents(): Array<Component> {
+    return components.physics;
+}
+
+export function getActiveRenderComponents(): Array<Component> {
+    return components.render;
+}
 
 export function createGameObject(): GameObject {
     const obj = new GameObjectImpl(`gameObject_${objects.length}`);
@@ -89,7 +118,42 @@ export function destroyGameObject(gameObject: GameObject): void {
     const index = objects.indexOf(gameObject);
     if (index !== -1) {
         objects.splice(index, 1);
-        gameObject.destroy();
+        gameObject.dispose();
     }
 }
 
+function addComponentToLists<T extends Component>(component: T): void {
+    if (component.physicsUpdate) {
+        components.physics.push(component);
+    }
+    if (component.renderUpdate) {
+        components.render.push(component);
+    }
+}
+
+function removeComponentFromLists<T extends Component>(component: T): void {
+    if (component.physicsUpdate) {
+        const index = components.physics.indexOf(component);
+        if (index !== -1) {
+            components.physics.splice(index, 1);
+        }
+    }
+    if (component.renderUpdate) {
+        const index = components.render.indexOf(component);
+        if (index !== -1) {
+            components.render.splice(index, 1);
+        }
+    }
+}
+
+function addComponentsToLists(componentsToAdd: Array<Component>): void {
+    components.physics.push(...componentsToAdd.filter(c => c.physicsUpdate));
+    components.render.push(...componentsToAdd.filter(c => c.renderUpdate));
+}
+
+function removeComponentsFromLists(componentsToRemove: Array<Component>): void {
+    const physicsSet = new Set(componentsToRemove.filter(c => c.physicsUpdate));
+    const renderSet = new Set(componentsToRemove.filter(c => c.renderUpdate));
+    components.physics = components.physics.filter(c => !physicsSet.has(c));
+    components.render = components.render.filter(c => !renderSet.has(c));
+}
