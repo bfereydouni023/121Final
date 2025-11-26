@@ -57,7 +57,7 @@ class GameObjectImpl implements GameObject {
         }
         return null;
     }
-
+    
     getComponents<T extends Component>(componentType: new (gameObject: GameObject) => T): T[] {
         const foundComponents: T[] = [];
         for (const component of this.components) {
