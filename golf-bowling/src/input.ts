@@ -1,5 +1,5 @@
 import type { SingletonComponent, Vector3 } from './types.ts';
-import { mainCamera, mouseInteractionGroup, world } from './globals.ts';
+import { mainCamera, mouseInteractionGroup, renderer, world } from './globals.ts';
 import { Ray } from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 
@@ -50,6 +50,16 @@ export class Input implements SingletonComponent {
         return { ...this.screenMousePosition };
     }
 
+    /** NOT IMPLEMENTED FULLY
+     * Computes the world-space intersection point of a ray cast from the active camera
+     * in its forward direction, intended to represent the mouse's position in the world.
+     * Important notes:
+     * - This implementation uses and depends on global objects: `mainCamera`, `world`, and `mouseInteractionGroup`.
+     * - The computation mutates the camera position and the temporary direction vector because
+     *   it performs in-place `Vector3` operations (`add`, `multiplyScalar`). Clone inputs if mutation is undesirable.
+     *
+     * @returns {THREE.Vector3 | null} The world-space position of the mouse intersection, or `null` if no intersection was found.
+     */
     getWorldMousePosition(): Vector3 | null {
         const cameraPosition = mainCamera.position;
         let directionFromCamera = new THREE.Vector3();

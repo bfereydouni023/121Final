@@ -62,6 +62,7 @@ export class TransformComponent extends BaseComponent {
 }
 
 export class RigidbodyComponent extends BaseComponent {
+    static readonly DEFAULT_GROUP = Globals.mouseInteractionGroup | 0x1;
     dependencies = [TransformComponent];
     mass: number = 1;
     velocity: Vector3 = { x: 0, y: 0, z: 0 };
@@ -96,9 +97,11 @@ export class RigidbodyComponent extends BaseComponent {
         }
     }
 
-    addCollider(colliderDesc: ColliderDesc) {
+    addCollider(colliderDesc: ColliderDesc, useDefaultCollisionGroup: boolean = true) {
         this.removeCollider();
         this._collider = Globals.world.createCollider(colliderDesc, this.rigidbody);
+        if (useDefaultCollisionGroup)
+            this._collider.setCollisionGroups(RigidbodyComponent.DEFAULT_GROUP);
     }
 
     removeCollider() {
