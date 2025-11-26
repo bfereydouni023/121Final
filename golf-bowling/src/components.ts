@@ -1,6 +1,6 @@
 import * as Globals from './globals.ts';
 import { ColliderDesc, RigidBodyDesc, RigidBodyType, type Collider, type RigidBody } from "@dimforge/rapier3d-compat";
-import type { Component, GameObject, Vector3 } from "./types";
+import type { Component, GameObject, Vector3, Rotation, Transform } from "./types";
 import { Camera, Light, Material, Mesh, PointLight } from "three";
 
 class BaseComponent implements Component {
@@ -14,16 +14,50 @@ class BaseComponent implements Component {
     }
 }
 
+/**
+ * Component that encapsulates an entity's local transform: position, rotation, and scale.
+ *
+ * @remarks
+ * The `dirty` flag indicates whether the transform has been modified and may need to be reconciled
+ * with rendering, physics, or other systems.
+ */
 export class TransformComponent extends BaseComponent {
-    public position: Vector3;
-    public rotation: Vector3;
-    public scale: Vector3;
-
+    private transform: Transform = {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+        scale: { x: 1, y: 1, z: 1 }
+    };
+    public dirty: boolean = false;
+    
+    public get position(): Vector3 {
+        return this.transform.position;
+    }
+    public set position(value: Vector3) {
+        this.transform.position = value;
+        this.dirty = true;
+    }
+    public get rotation(): Rotation {
+        return this.transform.rotation;
+    }
+    public set rotation(value: Rotation) {
+        this.transform.rotation = value;
+        this.dirty = true;
+    }
+    public get scale(): Vector3 {
+        return this.transform.scale;
+    }
+    public set scale(value: Vector3) {
+        this.transform.scale = value;
+        this.dirty = true;
+    }
+    
     constructor(gameObject: GameObject) {
         super(gameObject);
-        this.position = { x: 0, y: 0, z: 0 };
-        this.rotation = { x: 0, y: 0, z: 0 };
-        this.scale = { x: 1, y: 1, z: 1 };
+    }
+
+    setTranslation(transform: Transform) {
+        this.transform = transform;
+        this.dirty = true;
     }
 }
 
@@ -49,8 +83,17 @@ export class RigidbodyComponent extends BaseComponent {
     }
 
     physicsUpdate(_deltaTime: number): void {
-        const translation = this.rigidbody.translation();
-        this.gameObject.getComponent(TransformComponent)!.position = { ...translation };
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        if (transform.dirty) {
+            this.rigidbody.setTranslation(transform.position, true);
+            this.rigidbody.setRotation(transform.rotation, true);
+            transform.dirty = false;
+        }
+        else {
+            const translation = this.rigidbody.translation();
+            transform.position = { ...translation };
+            transform.rotation = this.rigidbody.rotation();
+        }
     }
 
     addCollider(colliderDesc: ColliderDesc) {
