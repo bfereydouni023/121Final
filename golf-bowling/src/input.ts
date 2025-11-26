@@ -1,9 +1,12 @@
-import type { SingletonComponent } from './types.ts';
+import type { SingletonComponent, Vector3 } from './types.ts';
+import { mainCamera, mouseInteractionGroup, world } from './globals.ts';
+import { Ray } from '@dimforge/rapier3d-compat';
+import * as THREE from 'three';
 
-class Input implements SingletonComponent {
+export class Input implements SingletonComponent {
     private lastFrameKeysPressed: Set<string> = new Set();
     private areKeysPressed: Set<string> = new Set();
-    private mousePosition: { x: number; y: number } = { x: 0, y: 0 };
+    private screenMousePosition: { x: number; y: number } = { x: 0, y: 0 };
 
     constructor() { }
 
@@ -21,8 +24,8 @@ class Input implements SingletonComponent {
             this.areKeysPressed.delete(`Mouse${event.button}`);
         });
         globalThis.window.addEventListener('mousemove', (event) => {
-            this.mousePosition.x = event.x;
-            this.mousePosition.y = event.y;
+            this.screenMousePosition.x = event.x;
+            this.screenMousePosition.y = event.y;
         });
     }
 
@@ -41,5 +44,17 @@ class Input implements SingletonComponent {
 
     isKeyJustReleased(key: string): boolean {
         return this.lastFrameKeysPressed.has(key) && !this.areKeysPressed.has(key);
+    }
+
+    getScreenMousePosition(): { x: number; y: number } {
+        return { ...this.screenMousePosition };
+    }
+
+    getWorldMousePosition(): Vector3 | null {
+        const cameraPosition = mainCamera.position;
+        let directionFromCamera = new THREE.Vector3();
+        mainCamera.getWorldDirection(directionFromCamera);
+        const hit = world.castRay(new Ray(cameraPosition, directionFromCamera), 100, true, undefined, mouseInteractionGroup);
+        return hit ? cameraPosition.add(directionFromCamera.multiplyScalar(hit.timeOfImpact)) : null;
     }
 }
