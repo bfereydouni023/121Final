@@ -55,10 +55,5 @@ export function createLevel(scene: THREE.Scene) {
   light.position.set(-25, 0, 75);
   scene.add(light);
 
-  // Note: if your RigidbodyComponent doesn't sync Transform -> Rapier on creation,
-  // the ball's visual may not start at the same place as its physics body.
-  // Add a small sync in RigidbodyComponent (set rigidbody translation from Transform)
-  // if needed.
-
   return created;
 }
