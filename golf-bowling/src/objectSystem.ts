@@ -94,7 +94,7 @@ const objects: Array<GameObject> = []
 const components = {
     physics: new Array<Component>(),
     render: new Array<Component>(),
-    singleton: new Set<SingletonComponent>(),
+    singleton: new Map<new () => SingletonComponent, SingletonComponent>(),
 }
 
 export function getActivePhysicsComponents(): Array<Component> {
@@ -159,44 +159,41 @@ function removeComponentsFromLists(componentsToRemove: Array<Component>): void {
     components.render = components.render.filter(c => !renderSet.has(c));
 }
 
-export function createSingletonComponent<T extends SingletonComponent>(component: T): T {
+function getOrCreateSingletonComponent<T extends SingletonComponent>(component: new () => T): T {
     if (components.singleton.has(component)) {
-        return component;
+        return components.singleton.get(component) as T;
     }
-    component.create?.();
-    components.singleton.add(component);
-    if (component.physicsUpdate) {
-        components.physics.push(component as unknown as Component);
+    const componentInstance = new component();
+    componentInstance.create?.();
+    components.singleton.set(component, componentInstance);
+    if (componentInstance.physicsUpdate) {
+        components.physics.push(componentInstance as any as Component);
     }
-    if (component.renderUpdate) {
-        components.render.push(component as unknown as Component);
+    if (componentInstance.renderUpdate) {
+        components.render.push(componentInstance as any as Component);
     }
-    return component;
+    return componentInstance;
 }
 
-export function destroySingletonComponent<T extends SingletonComponent>(component: T): void {
+export function destroySingletonComponent<T extends SingletonComponent>(component: new () => T): void {
     if (!components.singleton.has(component)) return;
-    component.dispose?.();
+    const componentInstance = components.singleton.get(component) as T;
+    componentInstance.dispose?.();
     components.singleton.delete(component);
-    if (component.physicsUpdate) {
-        const index = components.physics.indexOf(component as unknown as Component);
+    if (componentInstance.physicsUpdate) {
+        const index = components.physics.indexOf(componentInstance as any as Component);
         if (index !== -1) {
             components.physics.splice(index, 1);
         }
     }
-    if (component.renderUpdate) {
-        const index = components.render.indexOf(component as unknown as Component);
+    if (componentInstance.renderUpdate) {
+        const index = components.render.indexOf(componentInstance as any as Component);
         if (index !== -1) {
             components.render.splice(index, 1);
         }
     }
 }
 
-export function getSingletonComponent<T extends SingletonComponent>(componentType: new () => T): T | null {
-    for (const component of components.singleton) {
-        if (component instanceof componentType) {
-            return component as T;
-        }
-    }
-    return null;
+export function getSingletonComponent<T extends SingletonComponent>(componentType: new () => T): T {
+    return getOrCreateSingletonComponent(componentType);
 }
