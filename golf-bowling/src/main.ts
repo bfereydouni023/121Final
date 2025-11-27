@@ -20,6 +20,7 @@ setInterval(physicsUpdate, world.timestep * 1000);
 const renderClock = new THREE.Clock();
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+setMainCamera(camera);
 
 // set up camera position and target
 //camera.position.set(0, -35, 20);
