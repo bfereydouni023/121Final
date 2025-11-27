@@ -11,26 +11,37 @@ export function createLevel(scene: THREE.Scene) {
   // Track created objects for reference
   const created: Array<{ id: string }> = [];
 
-  // Ground (visual + static physics)
+  // Create the ground
   const ground = createGameObject();
   const gT = ground.addComponent(TransformComponent);
-  gT.position = { x: 0, y: -35, z: -10 };
-  gT.rotation = { x: 0, y: 0, z: 0 };
+  gT.position = { x: 0, y: -5, z: 0 };
+  gT.rotation = { x: 0, y: 0, z: 0 , w: 1 };
   const gMesh = ground.addComponent(MeshComponent);
+
+  // rectangular prism dimensions
+  const width = 50;
+  const height = 2;   // thickness / height of the prism
+  const depth = 30;
+
   gMesh.mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(50, 50),
+    new THREE.BoxGeometry(width, height, depth),
     new THREE.MeshStandardMaterial({ color: 0x808080 })
   );
+  // position the box so its top surface is at y = 0 (adjust if you want center at y=0)
+  gMesh.mesh.position.set(gT.position.x, gT.position.y - height / 2, gT.position.z);
   scene.add(gMesh.mesh);
 
   const gRb = ground.addComponent(RigidbodyComponent);
-  gRb.rigidbodyType = 'static';
-  // add a box collider roughly matching the plane
-  gRb.addCollider(RAPIER.ColliderDesc.cuboid(25, 0.1, 25));
+  // make ground fixed/static so it doesn't fall from gravity
+  gRb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+  // place rigidbody to match the TransformComponent position
+  gRb.rigidbody.setTranslation({ x: gT.position.x, y: gT.position.y, z: gT.position.z }, true);
+  // collider half-extents must match half the box dimensions
+  gRb.addCollider(RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2));
 
   created.push({ id: ground.id });
 
-  // Ball (visual + dynamic physics)
+  // Create the ball
   const ball = createGameObject();
   const bT = ball.addComponent(TransformComponent);
   bT.position = { x: 0, y: 0, z: 0 };
@@ -47,22 +58,12 @@ export function createLevel(scene: THREE.Scene) {
   bMesh.mesh.position.set(bT.position.x, bT.position.y, bT.position.z);
 
   const bRb = ball.addComponent(RigidbodyComponent);
+  // ensure the ball is dynamic so it falls/collides
+  bRb.rigidbody.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
   bRb.mass = 1;
-  bRb.rigidbodyType = 'dynamic';
+  // place rigidbody to match the TransformComponent position before adding the collider
+  bRb.rigidbody.setTranslation({ x: bT.position.x, y: bT.position.y, z: bT.position.z }, true);
   bRb.addCollider(RAPIER.ColliderDesc.ball(radius));
-
-  // log the ball position every frame via a ScriptComponent
-  const bScript = ball.addComponent(ScriptComponent);
-  bScript.onStart = () => {
-    console.log('[Ball] started at transform', bT.position);
-  };
-  bScript.onUpdate = (_dt: number) => {
-    // prefer mesh position if available (rendered position), fallback to transform
-    const transform = ball.getComponent(TransformComponent);
-    if (transform) {
-      console.log('[Ball] transform.position', transform.position);
-    }
-  };
 
   created.push({ id: ball.id });
 
