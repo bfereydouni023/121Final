@@ -67,6 +67,12 @@ export class RigidbodyComponent extends BaseComponent {
         super(gameObject);
         const desc = new RigidBodyDesc(RigidBodyType.Dynamic);
         this._rigidbodyInstance = Globals.world.createRigidBody(desc);
+        const t = this.gameObject.getComponent(TransformComponent);
+        if (t) {
+            // set the initial translation from Transform so physics starts in the right place
+            desc.setTranslation(t.position.x, t.position.y, t.position.z);
+            this._rigidbodyInstance = Globals.world.createRigidBody(desc);
+        }
         this._collider = Globals.world.createCollider(ColliderDesc.ball(5), this._rigidbodyInstance);
     }
 
@@ -82,6 +88,15 @@ export class RigidbodyComponent extends BaseComponent {
     addCollider(colliderDesc: ColliderDesc) {
         this._collider = Globals.world.createCollider(colliderDesc, this._rigidbodyInstance);
     }
+
+    //TODO: implement this into physicsUpdate(?)
+    public syncTransformToRigidBody() {
+        const t = this.gameObject.getComponent(TransformComponent);
+        if (!t || !this._rigidbodyInstance) return;
+        this._rigidbodyInstance.setTranslation({ x: t.position.x, y: t.position.y, z: t.position.z }, true);
+    }
+
+    //TODO: implement a way to set position through transform
 }
 
 export class MeshComponent extends BaseComponent {

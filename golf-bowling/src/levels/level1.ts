@@ -1,26 +1,27 @@
 import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d-compat';
 import { createGameObject } from '../objectSystem';
-import { TransformComponent, MeshComponent, RigidbodyComponent } from '../components';
+import { TransformComponent, MeshComponent, RigidbodyComponent, ScriptComponent } from '../components';
 
 /**
  * Build a simple level: ground, light, and a ball.
  * Adds meshes to the provided scene and returns created game objects.
  */
 export function createLevel(scene: THREE.Scene) {
+  // Track created objects for reference
   const created: Array<{ id: string }> = [];
 
   // Ground (visual + static physics)
   const ground = createGameObject();
   const gT = ground.addComponent(TransformComponent);
-  gT.position = { x: 0, y: 0, z: 0 };
+  gT.position = { x: 0, y: -35, z: -10 };
+  gT.rotation = { x: 0, y: 0, z: 0 };
   const gMesh = ground.addComponent(MeshComponent);
   gMesh.mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(50, 50),
     new THREE.MeshStandardMaterial({ color: 0x808080 })
   );
-  gMesh.mesh.rotation.x = 0;
-  //scene.add(gMesh.mesh);
+  scene.add(gMesh.mesh);
 
   const gRb = ground.addComponent(RigidbodyComponent);
   gRb.rigidbodyType = 'static';
@@ -42,11 +43,26 @@ export function createLevel(scene: THREE.Scene) {
   );
   scene.add(bMesh.mesh);
 
+  // force visual to match transform immediately
+  bMesh.mesh.position.set(bT.position.x, bT.position.y, bT.position.z);
+
   const bRb = ball.addComponent(RigidbodyComponent);
   bRb.mass = 1;
   bRb.rigidbodyType = 'dynamic';
   bRb.addCollider(RAPIER.ColliderDesc.ball(radius));
 
+  // log the ball position every frame via a ScriptComponent
+  const bScript = ball.addComponent(ScriptComponent);
+  bScript.onStart = () => {
+    console.log('[Ball] started at transform', bT.position);
+  };
+  bScript.onUpdate = (_dt: number) => {
+    // prefer mesh position if available (rendered position), fallback to transform
+    const transform = ball.getComponent(TransformComponent);
+    if (transform) {
+      console.log('[Ball] transform.position', transform.position);
+    }
+  };
 
   created.push({ id: ball.id });
 
