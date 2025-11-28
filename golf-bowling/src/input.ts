@@ -68,3 +68,41 @@ export class Input implements SingletonComponent {
         return hit ? cameraPosition.add(directionFromCamera.multiplyScalar(hit.timeOfImpact)) : null;
     }
 }
+
+/**
+ * Perform a raycast from the given MouseEvent into the provided scene using the renderer/camera.
+ * Returns the sorted intersection list (may be empty).
+ */
+export function performRaycastFromMouse(
+  ev: MouseEvent,
+  renderer: THREE.WebGLRenderer,
+  camera: THREE.Camera,
+  scene: THREE.Scene
+): THREE.Intersection<THREE.Object3D<THREE.Object3DEventMap>>[] {
+  const raycaster = new THREE.Raycaster();
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouseNDC = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(mouseNDC, camera);
+  return raycaster.intersectObjects(scene.children, true);
+}
+
+/**
+ * Walks a hit object's parent chain looking for userData.type === tag and returns that object (or null).
+ */
+export function findFirstTaggedHit(
+  hits: THREE.Intersection<THREE.Object3D<THREE.Object3DEventMap>>[],
+  tag: string
+): THREE.Object3D<THREE.Object3DEventMap> | null {
+  for (const hit of hits) {
+    let obj: THREE.Object3D<THREE.Object3DEventMap> | null = hit.object;
+    while (obj) {
+      const type = (obj as any).userData?.type;
+      if (type === tag) return obj;
+      obj = obj.parent;
+    }
+  }
+  return null;
+}
