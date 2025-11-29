@@ -7,16 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "precommit-msg": "echo 'Pre-commit checks...' && exit 1",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "prettier": "prettier src --write",
+    "type-check": "tsc --noEmit"
   },
-  "pre-commit": {
-    "run": [
-      "precommit-msg",
-      "lint"
-    ],
-    "silent": false
-  },
+  "pre-commit": [
+    "type-check",
+    "prettier",
+    "lint"
+  ],
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.1",
