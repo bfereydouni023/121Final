@@ -18,10 +18,18 @@ export interface GameObject {
   id: string;
   set active(value: boolean);
   get active(): boolean;
-  addComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T;
-  getComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): T | null;
-  getComponents<T extends Component>(componentType: new (gameObject: GameObject) => T): T[];
-  removeComponent<T extends Component>(componentType: new (gameObject: GameObject) => T): void;
+  addComponent<T extends Component>(
+    componentType: new (gameObject: GameObject) => T,
+  ): T;
+  getComponent<T extends Component>(
+    componentType: new (gameObject: GameObject) => T,
+  ): T | null;
+  getComponents<T extends Component>(
+    componentType: new (gameObject: GameObject) => T,
+  ): T[];
+  removeComponent<T extends Component>(
+    componentType: new (gameObject: GameObject) => T,
+  ): void;
   dispose(): void;
 }
 
