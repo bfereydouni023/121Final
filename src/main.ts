@@ -1,7 +1,13 @@
 import * as THREE from "three";
 import "./style.css";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { renderer, setRenderer, setWorld, world, setMainCamera } from "./globals";
+import {
+  renderer,
+  setRenderer,
+  setWorld,
+  world,
+  setMainCamera,
+} from "./globals";
 import {
   getActivePhysicsComponents,
   getActiveRenderComponents,
