@@ -10,10 +10,13 @@
     "precommit-msg": "echo 'Pre-commit checks...' && exit 0",
     "lint": "eslint src"
   },
-  "pre-commit": [
-    "precommit-msg",
-    "lint"
-  ],
+  "pre-commit": {
+    "run": [
+      "precommit-msg",
+      "lint"
+    ],
+    "silent": false
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.1",
