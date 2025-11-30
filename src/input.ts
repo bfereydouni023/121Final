@@ -1,9 +1,5 @@
 import type { SingletonComponent, Vector3 } from "./types.ts";
-import {
-  mainCamera,
-  mouseInteractionGroup,
-  world,
-} from "./globals.ts";
+import { mainCamera, mouseInteractionGroup, world } from "./globals.ts";
 import { Ray } from "@dimforge/rapier3d-compat";
 import * as THREE from "three";
 
