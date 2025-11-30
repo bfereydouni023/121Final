@@ -1,7 +1,11 @@
-import * as THREE from 'three';
-import * as RAPIER from '@dimforge/rapier3d-compat';
-import { createGameObject } from '../objectSystem';
-import { TransformComponent, MeshComponent, RigidbodyComponent } from '../components';
+import * as THREE from "three";
+import * as RAPIER from "@dimforge/rapier3d-compat";
+import { createGameObject } from "../objectSystem";
+import {
+  TransformComponent,
+  MeshComponent,
+  RigidbodyComponent,
+} from "../components";
 
 /**
  * createBlock(scene, position, size, isStatic)
@@ -12,7 +16,7 @@ export function createBlock(
   scene: THREE.Scene,
   position: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
   size: THREE.Vector3 = new THREE.Vector3(1, 1, 1),
-  isStatic = true
+  isStatic = true,
 ) {
   const block = createGameObject();
 
@@ -24,11 +28,11 @@ export function createBlock(
   const meshComp = block.addComponent(MeshComponent);
   meshComp.mesh = new THREE.Mesh(
     new THREE.BoxGeometry(size.x, size.y, size.z),
-    new THREE.MeshStandardMaterial({ color: 0xffffff })
+    new THREE.MeshStandardMaterial({ color: 0xffffff }),
   );
   meshComp.mesh.position.copy(position);
   meshComp.mesh.userData = meshComp.mesh.userData || {};
-  meshComp.mesh.userData.type = 'block';
+  meshComp.mesh.userData.type = "block";
   meshComp.mesh.userData.gameObject = block;
   scene.add(meshComp.mesh);
 
@@ -36,10 +40,18 @@ export function createBlock(
   const rb = block.addComponent(RigidbodyComponent);
   try {
     // try to set body type and initial translation if API is exposed
-    if ((rb as any).rigidbody && typeof (rb as any).rigidbody.setBodyType === 'function') {
-      const bodyType = isStatic ? RAPIER.RigidBodyType.Fixed : RAPIER.RigidBodyType.Dynamic;
+    if (
+      (rb as any).rigidbody &&
+      typeof (rb as any).rigidbody.setBodyType === "function"
+    ) {
+      const bodyType = isStatic
+        ? RAPIER.RigidBodyType.Fixed
+        : RAPIER.RigidBodyType.Dynamic;
       (rb as any).rigidbody.setBodyType(bodyType, true);
-      (rb as any).rigidbody.setTranslation({ x: position.x, y: position.y, z: position.z }, true);
+      (rb as any).rigidbody.setTranslation(
+        { x: position.x, y: position.y, z: position.z },
+        true,
+      );
     }
   } catch {
     /* ignore API differences */
@@ -52,8 +64,14 @@ export function createBlock(
 
   // ensure the rigidbody (if exposed) is positioned to the block center before adding collider
   try {
-    if ((rb as any).rigidbody && typeof (rb as any).rigidbody.setTranslation === 'function') {
-      (rb as any).rigidbody.setTranslation({ x: position.x, y: position.y, z: position.z }, true);
+    if (
+      (rb as any).rigidbody &&
+      typeof (rb as any).rigidbody.setTranslation === "function"
+    ) {
+      (rb as any).rigidbody.setTranslation(
+        { x: position.x, y: position.y, z: position.z },
+        true,
+      );
     }
   } catch {
     /* ignore if API differs */

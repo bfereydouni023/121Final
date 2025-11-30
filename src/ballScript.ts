@@ -1,7 +1,12 @@
-import * as THREE from 'three';
-import * as RAPIER from '@dimforge/rapier3d-compat';
-import { createGameObject } from './objectSystem';
-import { TransformComponent, MeshComponent, RigidbodyComponent, ScriptComponent } from './components';
+import * as THREE from "three";
+import * as RAPIER from "@dimforge/rapier3d-compat";
+import { createGameObject } from "./objectSystem";
+import {
+  TransformComponent,
+  MeshComponent,
+  RigidbodyComponent,
+  ScriptComponent,
+} from "./components";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -13,13 +18,22 @@ import { TransformComponent, MeshComponent, RigidbodyComponent, ScriptComponent 
 export function createBall(
   scene: THREE.Scene,
   camera: THREE.Camera,
-  domElement: HTMLElement = document.body
+  domElement: HTMLElement = document.body,
 ) {
   // validate camera early to give a clear error
-  if (!camera || !( (camera as any).isCamera || (camera as any).isPerspectiveCamera || (camera as any).isOrthographicCamera )) {
-    throw new Error('createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.');
+  if (
+    !camera ||
+    !(
+      (camera as any).isCamera ||
+      (camera as any).isPerspectiveCamera ||
+      (camera as any).isOrthographicCamera
+    )
+  ) {
+    throw new Error(
+      "createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.",
+    );
   }
-   const ball = createGameObject();
+  const ball = createGameObject();
 
   // Transform
   const t = ball.addComponent(TransformComponent);
@@ -30,10 +44,14 @@ export function createBall(
   const radius = 1.5;
   meshComp.mesh = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 32, 24),
-    new THREE.MeshStandardMaterial({ color: 0xff5500, metalness: 0.2, roughness: 0.6 })
+    new THREE.MeshStandardMaterial({
+      color: 0xff5500,
+      metalness: 0.2,
+      roughness: 0.6,
+    }),
   );
   meshComp.mesh.userData = meshComp.mesh.userData || {};
-  meshComp.mesh.userData.type = 'ball';
+  meshComp.mesh.userData.type = "ball";
   meshComp.mesh.userData.gameObject = ball;
   scene.add(meshComp.mesh);
 
@@ -41,7 +59,7 @@ export function createBall(
   const rbComp = ball.addComponent(RigidbodyComponent);
   // ensure Rapier body is dynamic and in the right place
   try {
-    if (typeof (rbComp.rigidbody as any).setBodyType === 'function') {
+    if (typeof (rbComp.rigidbody as any).setBodyType === "function") {
       (rbComp.rigidbody as any).setBodyType(RAPIER.RigidBodyType.Dynamic, true);
     }
   } catch (err) {
@@ -49,10 +67,14 @@ export function createBall(
   }
   rbComp.mass = 1;
   try {
-    if (typeof (rbComp.rigidbody as any).setTranslation === 'function') {
+    if (typeof (rbComp.rigidbody as any).setTranslation === "function") {
       (rbComp.rigidbody as any).setTranslation(
-        { x: meshComp.mesh.position.x, y: meshComp.mesh.position.y, z: meshComp.mesh.position.z },
-        true
+        {
+          x: meshComp.mesh.position.x,
+          y: meshComp.mesh.position.y,
+          z: meshComp.mesh.position.z,
+        },
+        true,
       );
     }
   } catch (err) {
@@ -82,8 +104,17 @@ export function createBall(
   function pointerToWorldOnBallPlane(event: PointerEvent, out: THREE.Vector3) {
     getPointerNDCCoords(event);
     // guard the camera before calling into Three.js
-    if (!camera || !( (camera as any).isCamera || (camera as any).isPerspectiveCamera || (camera as any).isOrthographicCamera )) {
-      console.error('pointerToWorldOnBallPlane: invalid camera, aborting raycast');
+    if (
+      !camera ||
+      !(
+        (camera as any).isCamera ||
+        (camera as any).isPerspectiveCamera ||
+        (camera as any).isOrthographicCamera
+      )
+    ) {
+      console.error(
+        "pointerToWorldOnBallPlane: invalid camera, aborting raycast",
+      );
       return false;
     }
     raycaster.setFromCamera(pointer, camera);
@@ -138,7 +169,10 @@ export function createBall(
     if (!got) dragEndWorld.copy(tmpVec);
 
     // compute impulse direction: opposite of drag vector (player drags backward to shoot forward)
-    const dragVec = new THREE.Vector3().subVectors(dragEndWorld, dragStartWorld);
+    const dragVec = new THREE.Vector3().subVectors(
+      dragEndWorld,
+      dragStartWorld,
+    );
     // constrain to horizontal (ignore Y) so launch is only in XZ plane
     dragVec.y = 0;
     if (dragVec.lengthSq() < 1e-6) {
@@ -149,17 +183,23 @@ export function createBall(
 
     // scale strength by drag length (tweak multiplier to taste)
     const strength = Math.min(dragVec.length() * 60, 400);
-    const impulse = { x: impulseDir.x * strength, y: impulseDir.y * strength, z: impulseDir.z * strength };
+    const impulse = {
+      x: impulseDir.x * strength,
+      y: impulseDir.y * strength,
+      z: impulseDir.z * strength,
+    };
 
     try {
-      if (typeof (rbComp.rigidbody as any).applyImpulse === 'function') {
+      if (typeof (rbComp.rigidbody as any).applyImpulse === "function") {
         (rbComp.rigidbody as any).applyImpulse(impulse, true);
-        console.log('BallScript: applied drag impulse', impulse);
+        console.log("BallScript: applied drag impulse", impulse);
       } else {
-        console.warn('BallScript: rigidbody.applyImpulse not available on this Rapier build');
+        console.warn(
+          "BallScript: rigidbody.applyImpulse not available on this Rapier build",
+        );
       }
     } catch (err) {
-      console.error('BallScript: failed to apply impulse', err);
+      console.error("BallScript: failed to apply impulse", err);
     }
 
     dragging = false;
@@ -167,29 +207,33 @@ export function createBall(
   }
 
   // Attach pointer listeners to the provided DOM element
-  domElement.addEventListener('pointerdown', onPointerDown);
-  domElement.addEventListener('pointermove', onPointerMove);
-  domElement.addEventListener('pointerup', onPointerUp);
-  domElement.addEventListener('pointercancel', onPointerUp);
-  domElement.addEventListener('pointerleave', onPointerUp);
+  domElement.addEventListener("pointerdown", onPointerDown);
+  domElement.addEventListener("pointermove", onPointerMove);
+  domElement.addEventListener("pointerup", onPointerUp);
+  domElement.addEventListener("pointercancel", onPointerUp);
+  domElement.addEventListener("pointerleave", onPointerUp);
 
   // Hook to clean up listeners if the script/component system supports disposal
   (script as any).onDispose = () => {
-    domElement.removeEventListener('pointerdown', onPointerDown);
-    domElement.removeEventListener('pointermove', onPointerMove);
-    domElement.removeEventListener('pointerup', onPointerUp);
-    domElement.removeEventListener('pointercancel', onPointerUp);
-    domElement.removeEventListener('pointerleave', onPointerUp);
+    domElement.removeEventListener("pointerdown", onPointerDown);
+    domElement.removeEventListener("pointermove", onPointerMove);
+    domElement.removeEventListener("pointerup", onPointerUp);
+    domElement.removeEventListener("pointercancel", onPointerUp);
+    domElement.removeEventListener("pointerleave", onPointerUp);
   };
 
   // Optional debug hooks
   (script as any).onStart = () => {
     // ensure physics body and mesh start in sync
     try {
-      if (typeof (rbComp.rigidbody as any).setTranslation === 'function') {
+      if (typeof (rbComp.rigidbody as any).setTranslation === "function") {
         (rbComp.rigidbody as any).setTranslation(
-          { x: meshComp.mesh.position.x, y: meshComp.mesh.position.y, z: meshComp.mesh.position.z },
-          true
+          {
+            x: meshComp.mesh.position.x,
+            y: meshComp.mesh.position.y,
+            z: meshComp.mesh.position.z,
+          },
+          true,
         );
       }
     } catch {

@@ -1,32 +1,22 @@
-import typescriptEslint from '@typescript-eslint/eslint-plugin';
-import parser from '@typescript-eslint/parser';
-import globals from 'globals';
+import jseslint from "@eslint/js";
+import { defineConfig } from "eslint/config";
+import tseslint from "typescript-eslint";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 
-export default [
+export default defineConfig(
+  jseslint.configs.recommended, // ESLint recommended base rules
+  tseslint.configs.recommended, // TypeScript recommended configs from @typescript-eslint
   {
-    files: ['src/**/*.ts'],
-    languageOptions: {
-      parser: parser,
-      parserOptions: {
-        project: './tsconfig.json',
-      },
-      globals: {
-        ...globals.browser,
-        ...globals.es2022,
-      },
-    },
-    plugins: {
-      '@typescript-eslint': typescriptEslint,
-    },
     rules: {
-      '@typescript-eslint/no-unused-vars': [
-        'warn',
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
         {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
         },
       ],
     },
   },
-];
+  eslintConfigPrettier, //Makes sure Prettier and ESLint run smoothly together
+);
