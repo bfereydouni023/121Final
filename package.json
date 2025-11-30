@@ -16,6 +16,7 @@
     "prettier",
     "lint"
   ],
+  "homepage": "https://bfereydouni023.github.io/121Final/",
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.1",
