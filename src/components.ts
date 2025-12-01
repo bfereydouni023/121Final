@@ -249,7 +249,7 @@ export class FollowComponent extends BaseComponent {
             (desiredPosition.y - transform.position.y) * this.smoothFactor;
         transform.position.z +=
             (desiredPosition.z - transform.position.z) * this.smoothFactor;
-        if (this.rotationMode == "lookAt") {
+        if (this.rotationMode === "lookAt") {
             this.pointAt(this.target.position, transform);
         }
         else {
