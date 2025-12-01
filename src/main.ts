@@ -35,22 +35,11 @@ world.timestep = 1 / 60;
 const physicsClock = new THREE.Clock();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
-// Start the physics update loop
-// keep the interval id so we can stop physics on victory
-let physicsInterval: number | null = window.setInterval(
-    physicsUpdate,
-    world.timestep * 1000,
-);
 let gamePaused = false;
 
 function pauseGameForVictory() {
     if (gamePaused) return;
     gamePaused = true;
-    // stop physics
-    if (physicsInterval !== null) {
-        clearInterval(physicsInterval);
-        physicsInterval = null;
-    }
     // stop render loop
     if (typeof renderer?.setAnimationLoop === "function") {
         renderer.setAnimationLoop(null);
@@ -126,6 +115,9 @@ const scene = new THREE.Scene();
 let fpsElement: HTMLDivElement;
 const fpsDeltas: number[] = [];
 const maxDeltas = 10;
+
+// Physics accumulator for fixed timestep
+let physicsAccumulator = 0;
 
 // set a visible background color
 scene.background = new THREE.Color(0x87ceeb);
@@ -211,8 +203,8 @@ renderer.setAnimationLoop(renderUpdate);
 function setupCameraTracking() {
     const cameraObject = createGameObject("Main Camera");
     cameraObject.addComponent(TransformComponent);
-    const cameraComponent = cameraObject.addComponent(CameraComponent);
     const followComponent = cameraObject.addComponent(FollowComponent);
+    const cameraComponent = cameraObject.addComponent(CameraComponent);
     cameraComponent.camera = mainCamera;
     cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
     const ball = getObjectByID("ball");
@@ -224,19 +216,33 @@ function setupCameraTracking() {
     followComponent.positionOffset = { x: 0, y: 15, z: 10 };
     followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
     followComponent.rotationMode = "fixed";
-    followComponent.positionMode = "fixed";
-    followComponent.positionSmoothFactor = 0.05;
+    followComponent.positionMode = "follow";
+    followComponent.positionSmoothFactor = 0.1;
 }
 
 function renderUpdate() {
-    const _delta = renderClock.getDelta();
+    const delta = renderClock.getDelta();
 
     // Update FPS counter
-    updateFPSCounter(_delta);
+    updateFPSCounter(delta);
+
+    // Update physics with fixed timestep
+    physicsAccumulator += delta;
+    while (physicsAccumulator >= world.timestep) {
+        physicsUpdate();
+        physicsAccumulator -= world.timestep;
+    }
+
+    // Update physics with fixed timestep
+    physicsAccumulator += delta;
+    while (physicsAccumulator >= world.timestep) {
+        physicsUpdate();
+        physicsAccumulator -= world.timestep;
+    }
 
     const components = getActiveRenderComponents();
     for (let i = 0; i < components.length; i++) {
-        components[i].renderUpdate!(_delta);
+        components[i].renderUpdate!(delta);
     }
 
     renderer.render(scene, mainCamera);
