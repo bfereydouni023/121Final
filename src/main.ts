@@ -19,6 +19,7 @@ import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
 import {
     CameraComponent,
     FollowComponent,
+    RigidbodyComponent,
     ScriptComponent,
     TransformComponent,
 } from "./components";
@@ -137,10 +138,11 @@ const _created = createLevel(scene, camera, renderer.domElement);
     } else {
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
-    followComponent.positionOffset = { x: 0, y: 15, z: 15 };
-    followComponent.rotationOffset = { x: 0, y: -Math.PI / 4, z: 0, w: 0 };
+    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
+    followComponent.rotationOffset = { x: 0, y: Math.PI / 4, z: 0, w: 0 };
     followComponent.rotationMode = "lookAt";
     followComponent.positionMode = "follow";
+    followComponent.positionSmoothFactor = 1;
 }
 
 // update on window resize
@@ -163,29 +165,19 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
     const tagged = findFirstTaggedHit(hits, "ball");
     if (!tagged) return;
 
-    const go = (tagged as any).userData?.gameObject;
+    const go = tagged.userData?.gameObject;
     if (!go) return;
 
     // Prefer calling a script hook on the ball if present
-    const script = go.getComponent ? go.getComponent(ScriptComponent) : null;
-    if (script && (script as any).onClicked) {
-        try {
-            (script as any).onClicked(ev);
-        } catch (e) {
-            console.error("onClicked error", e);
-        }
+    const script = go.getComponent(ScriptComponent);
+    if (script?.onClicked) {
+        script.onClicked(ev);
         return;
     }
 
     // Fallback: try to apply impulse directly if no script is present (keeps previous behavior)
-    const rbComp = go.getComponent
-        ? go.getComponent((await import("./components")).RigidbodyComponent)
-        : null;
-    if (
-        rbComp &&
-        rbComp.rigidbody &&
-        typeof (rbComp.rigidbody as any).applyImpulse === "function"
-    ) {
+    const rbComp = go.getComponent(RigidbodyComponent);
+    if (rbComp) {
         // apply a small random impulse as a fallback
         const dir = new THREE.Vector3(
             Math.random() * 2 - 1,
@@ -198,7 +190,7 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
             y: dir.y * strength,
             z: dir.z * strength,
         };
-        (rbComp.rigidbody as any).applyImpulse(impulse, true);
+        rbComp.rigidbody.applyImpulse(impulse, true);
     }
 });
 

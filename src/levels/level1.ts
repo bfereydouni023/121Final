@@ -5,7 +5,6 @@ import {
     TransformComponent,
     MeshComponent,
     RigidbodyComponent,
-    ScriptComponent,
 } from "../components";
 import { createBall } from "../ballScript";
 import { createGoal } from "../goalScript";
@@ -116,19 +115,19 @@ export function createLevel(
     created.push({ id: wallBottom.id });
 
     //Create blocks as obstacles (Make a zigzag pattern)
-    const block1 = createBlock(
+    createBlock(
         scene,
         new THREE.Vector3(-8, 3, gT.position.z + 30),
         new THREE.Vector3(24, 6, 6),
         true,
     );
-    const block2 = createBlock(
+    createBlock(
         scene,
         new THREE.Vector3(8, 3, gT.position.z + 0),
         new THREE.Vector3(24, 6, 6),
         true,
     );
-    const block3 = createBlock(
+    createBlock(
         scene,
         new THREE.Vector3(-8, 3, gT.position.z - 30),
         new THREE.Vector3(24, 6, 6),

@@ -38,44 +38,15 @@ export function createBlock(
 
     // Physics - static by default (level geometry)
     const rb = block.addComponent(RigidbodyComponent);
-    try {
-        // try to set body type and initial translation if API is exposed
-        if (
-            (rb as any).rigidbody &&
-            typeof (rb as any).rigidbody.setBodyType === "function"
-        ) {
-            const bodyType = isStatic
-                ? RAPIER.RigidBodyType.Fixed
-                : RAPIER.RigidBodyType.Dynamic;
-            (rb as any).rigidbody.setBodyType(bodyType, true);
-            (rb as any).rigidbody.setTranslation(
-                { x: position.x, y: position.y, z: position.z },
-                true,
-            );
-        }
-    } catch {
-        /* ignore API differences */
-    }
+    const bodyType = isStatic
+        ? RAPIER.RigidBodyType.Fixed
+        : RAPIER.RigidBodyType.Dynamic;
+    rb.rigidbody.setBodyType(bodyType, true);
 
     // add a collider that matches the box geometry
     const halfX = size.x / 2;
     const halfY = size.y / 2;
     const halfZ = size.z / 2;
-
-    // ensure the rigidbody (if exposed) is positioned to the block center before adding collider
-    try {
-        if (
-            (rb as any).rigidbody &&
-            typeof (rb as any).rigidbody.setTranslation === "function"
-        ) {
-            (rb as any).rigidbody.setTranslation(
-                { x: position.x, y: position.y, z: position.z },
-                true,
-            );
-        }
-    } catch {
-        /* ignore if API differs */
-    }
 
     // pass explicit `false` for `isSensor` (match other usage in the repo)
     rb.addCollider(RAPIER.ColliderDesc.cuboid(halfX, halfY, halfZ), false);

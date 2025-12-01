@@ -21,14 +21,7 @@ export function createBall(
     domElement: HTMLElement = document.body,
 ) {
     // validate camera early to give a clear error
-    if (
-        !camera ||
-        !(
-            (camera as any).isCamera ||
-            (camera as any).isPerspectiveCamera ||
-            (camera as any).isOrthographicCamera
-        )
-    ) {
+    if (!camera) {
         throw new Error(
             "createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.",
         );
@@ -58,31 +51,8 @@ export function createBall(
     // Physics
     const rbComp = ball.addComponent(RigidbodyComponent);
     // ensure Rapier body is dynamic and in the right place
-    try {
-        if (typeof (rbComp.rigidbody as any).setBodyType === "function") {
-            (rbComp.rigidbody as any).setBodyType(
-                RAPIER.RigidBodyType.Dynamic,
-                true,
-            );
-        }
-    } catch (err) {
-        // ignore if API differs
-    }
+    rbComp.rigidbody.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
     rbComp.mass = 1;
-    try {
-        if (typeof (rbComp.rigidbody as any).setTranslation === "function") {
-            (rbComp.rigidbody as any).setTranslation(
-                {
-                    x: meshComp.mesh.position.x,
-                    y: meshComp.mesh.position.y,
-                    z: meshComp.mesh.position.z,
-                },
-                true,
-            );
-        }
-    } catch (err) {
-        // ignore if API differs
-    }
     rbComp.addCollider(RAPIER.ColliderDesc.ball(radius), false);
 
     // Script / behavior component - adds drag-to-launch interactions
@@ -95,7 +65,7 @@ export function createBall(
     const tmpVec = new THREE.Vector3();
 
     let dragging = false;
-    let dragStartWorld = new THREE.Vector3();
+    const dragStartWorld = new THREE.Vector3();
     let activePointerId: number | null = null;
 
     function getPointerNDCCoords(event: PointerEvent) {
@@ -110,14 +80,7 @@ export function createBall(
     ) {
         getPointerNDCCoords(event);
         // guard the camera before calling into Three.js
-        if (
-            !camera ||
-            !(
-                (camera as any).isCamera ||
-                (camera as any).isPerspectiveCamera ||
-                (camera as any).isOrthographicCamera
-            )
-        ) {
+        if (!camera) {
             console.error(
                 "pointerToWorldOnBallPlane: invalid camera, aborting raycast",
             );
@@ -197,18 +160,7 @@ export function createBall(
             z: impulseDir.z * strength,
         };
 
-        try {
-            if (typeof (rbComp.rigidbody as any).applyImpulse === "function") {
-                (rbComp.rigidbody as any).applyImpulse(impulse, true);
-                console.log("BallScript: applied drag impulse", impulse);
-            } else {
-                console.warn(
-                    "BallScript: rigidbody.applyImpulse not available on this Rapier build",
-                );
-            }
-        } catch (err) {
-            console.error("BallScript: failed to apply impulse", err);
-        }
+        rbComp.rigidbody.applyImpulse(impulse, true);
 
         dragging = false;
         activePointerId = null;
@@ -222,33 +174,12 @@ export function createBall(
     domElement.addEventListener("pointerleave", onPointerUp);
 
     // Hook to clean up listeners if the script/component system supports disposal
-    (script as any).onDispose = () => {
+    script.onDispose = () => {
         domElement.removeEventListener("pointerdown", onPointerDown);
         domElement.removeEventListener("pointermove", onPointerMove);
         domElement.removeEventListener("pointerup", onPointerUp);
         domElement.removeEventListener("pointercancel", onPointerUp);
         domElement.removeEventListener("pointerleave", onPointerUp);
-    };
-
-    // Optional debug hooks
-    (script as any).onStart = () => {
-        // ensure physics body and mesh start in sync
-        try {
-            if (
-                typeof (rbComp.rigidbody as any).setTranslation === "function"
-            ) {
-                (rbComp.rigidbody as any).setTranslation(
-                    {
-                        x: meshComp.mesh.position.x,
-                        y: meshComp.mesh.position.y,
-                        z: meshComp.mesh.position.z,
-                    },
-                    true,
-                );
-            }
-        } catch {
-            /* ignore */
-        }
     };
 
     return ball;

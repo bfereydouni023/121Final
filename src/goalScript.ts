@@ -43,20 +43,16 @@ export function createGoal(
 
     // physics: static sensor collider so ball can pass through but we detect entry
     const rb = goal.addComponent(RigidbodyComponent);
-    try {
-        rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        rb.rigidbody.setTranslation(
-            { x: position.x, y: position.y, z: position.z },
-            true,
-        );
-        // add collider as sensor (second param `true` indicates sensor in this project convention)
-        rb.addCollider(
-            RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
-            true,
-        );
-    } catch {
-        // ignore if API differs — detection below will still work via overlap test
-    }
+    rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+    rb.rigidbody.setTranslation(
+        { x: position.x, y: position.y, z: position.z },
+        true,
+    );
+    // add collider as sensor (second param `true` indicates sensor in this project convention)
+    rb.addCollider(
+        RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
+        true,
+    );
 
     // behavior: check each physics tick whether the ball is inside the goal box
     const script = goal.addComponent(ScriptComponent);
@@ -68,7 +64,7 @@ export function createGoal(
         let ballObj: THREE.Object3D | null = null;
         scene.traverse((o) => {
             if (ballObj) return;
-            const ud = (o as any).userData;
+            const ud = o.userData;
             if (ud && ud.type === "ball") ballObj = o;
         });
         if (!ballObj) return;
@@ -87,13 +83,13 @@ export function createGoal(
                 }),
             );
             // optional: visual feedback
-            (m.mesh.material as THREE.Material).opacity = 0.5;
+            (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
             console.log("[Goal] victory triggered for goal", goal.id);
         }
     };
 
     // cleanup if system supports disposal
-    (script as any).onDispose = () => {
+    script.onDispose = () => {
         scene.remove(m.mesh);
     };
 
@@ -134,20 +130,16 @@ export function createOverlay(
 
     // physics: static sensor collider so ball can pass through but we detect entry
     const rb = overlay.addComponent(RigidbodyComponent);
-    try {
-        rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        rb.rigidbody.setTranslation(
-            { x: position.x, y: position.y, z: position.z },
-            true,
-        );
-        // add collider as sensor (second param `true` indicates sensor in this project convention)
-        rb.addCollider(
-            RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
-            true,
-        );
-    } catch {
-        // ignore if API differs — detection below will still work via overlap test
-    }
+    rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+    rb.rigidbody.setTranslation(
+        { x: position.x, y: position.y, z: position.z },
+        true,
+    );
+    // add collider as sensor (second param `true` indicates sensor in this project convention)
+    rb.addCollider(
+        RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
+        true,
+    );
 
     // behavior: check each physics tick whether the ball is inside the goal box
     const script = overlay.addComponent(ScriptComponent);
@@ -159,7 +151,7 @@ export function createOverlay(
         let ballObj: THREE.Object3D | null = null;
         scene.traverse((o) => {
             if (ballObj) return;
-            const ud = (o as any).userData;
+            const ud = o.userData;
             if (ud && ud.type === "ball") ballObj = o;
         });
         if (!ballObj) return;
@@ -178,13 +170,13 @@ export function createOverlay(
                 }),
             );
             // optional: visual feedback
-            (m.mesh.material as THREE.Material).opacity = 0.5;
+            (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
             console.log("[Overlay] victory triggered for overlay", overlay.id);
         }
     };
 
     // cleanup if system supports disposal
-    (script as any).onDispose = () => {
+    script.onDispose = () => {
         scene.remove(m.mesh);
     };
 
