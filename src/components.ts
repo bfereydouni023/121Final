@@ -235,7 +235,6 @@ export class FollowComponent extends BaseComponent {
     renderUpdate(_deltaTime: number): void {
         if (!this.target) return;
         const transform = this.gameObject.getComponent(TransformComponent)!;
-        console.log("Following target", this.target.position);
 
         const desiredPosition = {
             x: this.target.position.x + this.positionOffset.x,
