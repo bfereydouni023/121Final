@@ -11,7 +11,7 @@ import {
 } from "./objectSystem";
 import { createLevel } from "./levels/level1";
 import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
-import { CameraComponent, FollowComponent, MeshComponent, ScriptComponent, TransformComponent } from "./components";
+import { CameraComponent, FollowComponent, ScriptComponent, TransformComponent } from "./components";
 
 // TUNABLE PARAMETERS]
 const cameraSmoothing = 0.05;
