@@ -115,8 +115,16 @@ export class RigidbodyComponent extends BaseComponent {
             transform.dirty = false;
         } else {
             const translation = this.rigidbody.translation();
-            transform.position = { ...translation };
-            transform.rotation = this.rigidbody.rotation();
+            const rotation = this.rigidbody.rotation();
+            const position = transform.position;
+            position.x = translation.x;
+            position.y = translation.y;
+            position.z = translation.z;
+            const rot = transform.rotation;
+            rot.x = rotation.x;
+            rot.y = rotation.y;
+            rot.z = rotation.z;
+            rot.w = rotation.w;
         }
     }
 
@@ -235,12 +243,14 @@ export class FollowComponent extends BaseComponent {
         const transform = this.gameObject.getComponent(TransformComponent)!;
         if (this.positionMode === "follow") {
             this.moveTo(this.target.position, transform);
-        }
-        else {
+        } else {
             this.moveTo(this.positionOffset, transform);
         }
         if (this.rotationMode === "lookAt") {
-            const targetQuat = this.getRotationToward(this.target.position, transform);
+            const targetQuat = this.getRotationToward(
+                this.target.position,
+                transform,
+            );
             this.smoothRotateTo(targetQuat, transform);
         } else {
             const targetQuat = new Quaternion(
@@ -252,17 +262,14 @@ export class FollowComponent extends BaseComponent {
             this.smoothRotateTo(targetQuat, transform);
         }
     }
-    
-    private moveTo(
-        targetPos: Vector3,
-        transform: TransformComponent,)
-        {
+
+    private moveTo(targetPos: Vector3, transform: TransformComponent) {
         const desiredPosition = {
             x: targetPos.x + this.positionOffset.x,
             y: targetPos.y + this.positionOffset.y,
             z: targetPos.z + this.positionOffset.z,
         };
-    
+
         // Smoothly interpolate to the desired position
         transform.position.x +=
             (desiredPosition.x - transform.position.x) *
@@ -273,6 +280,7 @@ export class FollowComponent extends BaseComponent {
         transform.position.z +=
             (desiredPosition.z - transform.position.z) *
             this.positionSmoothFactor;
+        transform.dirty = true;
     }
 
     private getRotationToward(
