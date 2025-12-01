@@ -239,6 +239,7 @@ export class FollowComponent extends BaseComponent {
     public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 0 };
     public positionSmoothFactor: number = 0.1;
     public rotationSmoothFactor: number = 0.1;
+    public positionMode: "follow" | "fixed" = "follow";
     public rotationMode: "lookAt" | "fixed" = "fixed";
 
     constructor(gameObject: GameObject) {
@@ -248,28 +249,52 @@ export class FollowComponent extends BaseComponent {
     renderUpdate(_deltaTime: number): void {
         if (!this.target) return;
         const transform = this.gameObject.getComponent(TransformComponent)!;
-
-        const desiredPosition = {
-            x: this.target.position.x + this.positionOffset.x,
-            y: this.target.position.y + this.positionOffset.y,
-            z: this.target.position.z + this.positionOffset.z,
-        };
-
-        // Smoothly interpolate to the desired position
-        transform.position.x +=
-            (desiredPosition.x - transform.position.x) * this.positionSmoothFactor;
-        transform.position.y +=
-            (desiredPosition.y - transform.position.y) * this.positionSmoothFactor;
-        transform.position.z +=
-            (desiredPosition.z - transform.position.z) * this.positionSmoothFactor;
+        if (this.positionMode === "follow") {
+            this.moveTo(this.target.position, transform);
+        }
+        else {
+            this.moveTo(this.positionOffset, transform);
+        }
         if (this.rotationMode === "lookAt") {
-            this.pointAt(this.target.position, transform);
+            const targetQuat = this.getRotationToward(this.target.position, transform);
+            this.smoothRotateTo(targetQuat, transform);
         } else {
-            transform.rotation = this.rotationOffset;
+            const targetQuat = new Quaternion(
+                this.rotationOffset.x,
+                this.rotationOffset.y,
+                this.rotationOffset.z,
+                this.rotationOffset.w,
+            );
+            this.smoothRotateTo(targetQuat, transform);
         }
     }
+    
+    private moveTo(
+        targetPos: Vector3,
+        transform: TransformComponent,)
+        {
+        const desiredPosition = {
+            x: targetPos.x + this.positionOffset.x,
+            y: targetPos.y + this.positionOffset.y,
+            z: targetPos.z + this.positionOffset.z,
+        };
+    
+        // Smoothly interpolate to the desired position
+        transform.position.x +=
+            (desiredPosition.x - transform.position.x) *
+            this.positionSmoothFactor;
+        transform.position.y +=
+            (desiredPosition.y - transform.position.y) *
+            this.positionSmoothFactor;
+        transform.position.z +=
+            (desiredPosition.z - transform.position.z) *
+            this.positionSmoothFactor;
+    }
 
-    private pointAt(targetPos: Vector3, transform: TransformComponent) {
+    private getRotationToward(
+        targetPos: Vector3,
+        transform: TransformComponent,
+    ): Quaternion {
         const direction = new ThreeVector3(
             targetPos.x - transform.position.x,
             targetPos.y - transform.position.y,
@@ -301,11 +326,25 @@ export class FollowComponent extends BaseComponent {
         );
         quaternion.multiply(offsetQuat);
 
+        return quaternion;
+    }
+
+    private smoothRotateTo(
+        targetQuat: Quaternion,
+        transform: TransformComponent,
+    ) {
+        const currentQuat = new Quaternion(
+            transform.rotation.x,
+            transform.rotation.y,
+            transform.rotation.z,
+            transform.rotation.w,
+        );
+        currentQuat.slerp(targetQuat, this.rotationSmoothFactor);
         transform.rotation = {
-            x: quaternion.x,
-            y: quaternion.y,
-            z: quaternion.z,
-            w: quaternion.w,
+            x: currentQuat.x,
+            y: currentQuat.y,
+            z: currentQuat.z,
+            w: currentQuat.w,
         };
     }
 }

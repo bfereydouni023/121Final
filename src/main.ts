@@ -130,6 +130,7 @@ const _created = createLevel(scene, camera, renderer.domElement);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
     const followComponent = cameraObject.addComponent(FollowComponent);
     cameraComponent.camera = camera;
+    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
     const ball = getObjectByID("ball");
     if (ball == null) {
         console.warn("Could not find ball for camera follow");
@@ -137,7 +138,9 @@ const _created = createLevel(scene, camera, renderer.domElement);
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
     followComponent.positionOffset = { x: 0, y: 15, z: 15 };
-    followComponent.rotationOffset = { x: -Math.PI / 4, y: 0, z: 0, w: 0 };
+    followComponent.rotationOffset = { x: 0, y: -Math.PI / 4, z: 0, w: 0 };
+    followComponent.rotationMode = "lookAt";
+    followComponent.positionMode = "follow";
 }
 
 // update on window resize
