@@ -121,7 +121,12 @@ const created = createLevel(scene, camera, renderer.domElement);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
     const followComponent = cameraObject.addComponent(FollowComponent);
     cameraComponent.camera = camera;
-    followComponent.target = getObjectByID("ball")!.getComponent(TransformComponent)!;
+    const ball = getObjectByID("ball");
+    if (ball == null) {
+        console.warn("Could not find ball for camera follow");
+    } else {
+        followComponent.target = ball.getComponent(TransformComponent)!;
+    }
     followComponent.positionOffset = { x: 0, y: 15, z: 15 };
     followComponent.rotationOffset = { x: -Math.PI / 4, y: 0, z: 0, w: 0 };
 }
