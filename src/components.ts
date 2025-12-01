@@ -124,7 +124,7 @@ export class RigidbodyComponent extends BaseComponent {
     removeCollider() {
         if (this._collider) {
             Globals.world.removeCollider(this._collider, true);
-            this._collider = undefined!;
+            this._collider = null;
         }
     }
 }
