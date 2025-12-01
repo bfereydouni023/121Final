@@ -119,7 +119,9 @@ export function getActiveRenderComponents(): Array<Component> {
 }
 
 export function createGameObject(id: string | null = null): GameObject {
-  const obj = new GameObjectImpl(id ? id.toLowerCase() : `game_object_${objects.length}`);
+  const obj = new GameObjectImpl(
+    id ? id.toLowerCase() : `game_object_${objects.length}`,
+  );
   objects.push(obj);
   return obj;
 }
