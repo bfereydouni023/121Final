@@ -13,7 +13,16 @@ import type {
     Rotation,
     Transform,
 } from "./types";
-import { Camera, Light, Material, Mesh, PointLight } from "three";
+import {
+    Camera,
+    Light,
+    Material,
+    Matrix4,
+    Mesh,
+    PointLight,
+    Quaternion,
+    Vector3 as ThreeVector3,
+} from "three";
 
 class BaseComponent implements Component {
     dependencies: (new (gameObject: GameObject) => Component)[] = [];
@@ -227,8 +236,9 @@ export class FollowComponent extends BaseComponent {
     dependencies = [TransformComponent];
     public target: TransformComponent | null = null;
     public positionOffset: Vector3 = { x: 0, y: 5, z: -10 };
-    public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 1 };
-    public smoothFactor: number = 0.1;
+    public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 0 };
+    public positionSmoothFactor: number = 0.1;
+    public rotationSmoothFactor: number = 0.1;
     public rotationMode: "lookAt" | "fixed" = "fixed";
 
     constructor(gameObject: GameObject) {
@@ -247,11 +257,11 @@ export class FollowComponent extends BaseComponent {
 
         // Smoothly interpolate to the desired position
         transform.position.x +=
-            (desiredPosition.x - transform.position.x) * this.smoothFactor;
+            (desiredPosition.x - transform.position.x) * this.positionSmoothFactor;
         transform.position.y +=
-            (desiredPosition.y - transform.position.y) * this.smoothFactor;
+            (desiredPosition.y - transform.position.y) * this.positionSmoothFactor;
         transform.position.z +=
-            (desiredPosition.z - transform.position.z) * this.smoothFactor;
+            (desiredPosition.z - transform.position.z) * this.positionSmoothFactor;
         if (this.rotationMode === "lookAt") {
             this.pointAt(this.target.position, transform);
         } else {
@@ -260,84 +270,43 @@ export class FollowComponent extends BaseComponent {
     }
 
     private pointAt(targetPos: Vector3, transform: TransformComponent) {
-        // Compute direction vector from camera to target
-        const dirX = targetPos.x - transform.position.x;
-        const dirY = targetPos.y - transform.position.y;
-        const dirZ = targetPos.z - transform.position.z;
+        const direction = new ThreeVector3(
+            targetPos.x - transform.position.x,
+            targetPos.y - transform.position.y,
+            targetPos.z - transform.position.z,
+        ).normalize();
 
-        // Compute Euler angles from direction vector
-        const horizontalDist = Math.sqrt(dirX * dirX + dirZ * dirZ);
-        // Yaw: rotation around Y axis (horizontal look direction)
-        const yaw = Math.atan2(dirX, dirZ);
-        // Pitch: rotation around X axis (vertical look direction)
-        const pitch = -Math.atan2(dirY, horizontalDist);
+        const up = new ThreeVector3(0, 1, 0);
+        const right = new ThreeVector3()
+            .crossVectors(up, direction)
+            .normalize();
+        const correctedUp = new ThreeVector3()
+            .crossVectors(direction, right)
+            .normalize();
 
-        // Convert Euler angles (pitch, yaw, 0) to quaternion (XYZ order)
-        const halfPitch = pitch * 0.5;
-        const halfYaw = yaw * 0.5;
-        const cosPitch = Math.cos(halfPitch);
-        const sinPitch = Math.sin(halfPitch);
-        const cosYaw = Math.cos(halfYaw);
-        const sinYaw = Math.sin(halfYaw);
+        // Create rotation matrix from basis vectors
+        const matrix = new Matrix4();
+        matrix.makeBasis(right, correctedUp, direction);
 
-        // Quaternion from Euler angles (X then Y rotation)
-        const desiredRotation = {
-            x: sinPitch * cosYaw,
-            y: cosPitch * sinYaw,
-            z: -sinPitch * sinYaw,
-            w: cosPitch * cosYaw,
-        };
+        // Set quaternion from matrix
+        const quaternion = new Quaternion();
+        quaternion.setFromRotationMatrix(matrix);
 
-        // Smoothly interpolate (slerp) to the desired rotation
-        const current = transform.rotation;
-        // Compute dot product to check if we need to negate for shortest path
-        let dot =
-            current.x * desiredRotation.x +
-            current.y * desiredRotation.y +
-            current.z * desiredRotation.z +
-            current.w * desiredRotation.w;
-
-        // Negate one quaternion if dot product is negative (take shortest path)
-        const sign = dot < 0 ? -1 : 1;
-        dot = Math.abs(dot);
-
-        // Clamp dot for acos
-        const theta = Math.acos(Math.min(1, dot));
-        const sinTheta = Math.sin(theta);
-
-        let scale0: number, scale1: number;
-        if (sinTheta > 0.001) {
-            // Standard slerp
-            scale0 = Math.sin((1 - this.smoothFactor) * theta) / sinTheta;
-            scale1 = Math.sin(this.smoothFactor * theta) / sinTheta;
-        } else {
-            // Use linear interpolation for small angles
-            scale0 = 1 - this.smoothFactor;
-            scale1 = this.smoothFactor;
-        }
-
-        transform.rotation.x =
-            scale0 * current.x + scale1 * sign * desiredRotation.x;
-        transform.rotation.y =
-            scale0 * current.y + scale1 * sign * desiredRotation.y;
-        transform.rotation.z =
-            scale0 * current.z + scale1 * sign * desiredRotation.z;
-        transform.rotation.w =
-            scale0 * current.w + scale1 * sign * desiredRotation.w;
-
-        // Normalize the resulting quaternion
-        const len = Math.sqrt(
-            transform.rotation.x ** 2 +
-                transform.rotation.y ** 2 +
-                transform.rotation.z ** 2 +
-                transform.rotation.w ** 2,
+        // Apply rotation offset
+        const offsetQuat = new Quaternion(
+            this.rotationOffset.x,
+            this.rotationOffset.y,
+            this.rotationOffset.z,
+            this.rotationOffset.w,
         );
-        if (len > 0) {
-            transform.rotation.x /= len;
-            transform.rotation.y /= len;
-            transform.rotation.z /= len;
-            transform.rotation.w /= len;
-        }
+        quaternion.multiply(offsetQuat);
+
+        transform.rotation = {
+            x: quaternion.x,
+            y: quaternion.y,
+            z: quaternion.z,
+            w: quaternion.w,
+        };
     }
 }
 
