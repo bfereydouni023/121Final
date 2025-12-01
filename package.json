@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build --base=/121Final/",
     "preview": "vite preview",
     "lint": "eslint src",
     "prettier": "prettier src --write",
@@ -16,6 +16,7 @@
     "prettier",
     "lint"
   ],
+  "homepage": "https://bfereydouni023.github.io/121Final/",
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@eslint/js": "^9.39.1",
