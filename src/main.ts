@@ -109,12 +109,13 @@ scene.background = new THREE.Color(0x87ceeb);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 setMainCamera(
-new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000,
-));
+    new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000,
+    ),
+);
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
@@ -126,25 +127,7 @@ document.body.appendChild(renderer.domElement);
 const _created = createLevel(scene, mainCamera, renderer.domElement);
 
 // Todo: move camera setup to a helper function
-{
-    const cameraObject = createGameObject("Main Camera");
-    cameraObject.addComponent(TransformComponent);
-    const cameraComponent = cameraObject.addComponent(CameraComponent);
-    const followComponent = cameraObject.addComponent(FollowComponent);
-    cameraComponent.camera = mainCamera;
-    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
-    const ball = getObjectByID("ball");
-    if (ball == null) {
-        console.warn("Could not find ball for camera follow");
-    } else {
-        followComponent.target = ball.getComponent(TransformComponent)!;
-    }
-    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
-    followComponent.rotationOffset = { x: 0, y: Math.PI / 4, z: 0, w: 0 };
-    followComponent.rotationMode = "lookAt";
-    followComponent.positionMode = "follow";
-    followComponent.positionSmoothFactor = 1;
-}
+setupCameraTracking();
 
 // update on window resize
 window.addEventListener("resize", () => {
@@ -196,6 +179,26 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
 });
 
 renderer.setAnimationLoop(renderUpdate);
+
+function setupCameraTracking() {
+    const cameraObject = createGameObject("Main Camera");
+    cameraObject.addComponent(TransformComponent);
+    const cameraComponent = cameraObject.addComponent(CameraComponent);
+    const followComponent = cameraObject.addComponent(FollowComponent);
+    cameraComponent.camera = mainCamera;
+    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
+    const ball = getObjectByID("ball");
+    if (ball == null) {
+        console.warn("Could not find ball for camera follow");
+    } else {
+        followComponent.target = ball.getComponent(TransformComponent)!;
+    }
+    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
+    followComponent.rotationOffset = { x: 0, y: Math.PI / 4, z: 0, w: 0 };
+    followComponent.rotationMode = "lookAt";
+    followComponent.positionMode = "follow";
+    followComponent.positionSmoothFactor = 1;
+}
 
 function renderUpdate() {
     const _delta = renderClock.getDelta();
