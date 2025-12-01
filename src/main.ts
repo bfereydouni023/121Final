@@ -14,7 +14,6 @@ import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
 import { CameraComponent, FollowComponent, ScriptComponent, TransformComponent } from "./components";
 
 // TUNABLE PARAMETERS]
-const cameraSmoothing = 0.05;
 
 // Ensure Rapier is loaded before proceeding
 await RAPIER.init();
