@@ -354,6 +354,7 @@ export class ScriptComponent extends BaseComponent {
     public onStart?(): void;
     public onUpdate?(_deltaTime: number): void;
     public onPhysicsUpdate?(_deltaTime: number): void;
+    public onDispose?(): void;
     private hasStarted: boolean = false;
 
     create(): void {
@@ -368,5 +369,8 @@ export class ScriptComponent extends BaseComponent {
     }
     physicsUpdate(_deltaTime: number): void {
         this.onPhysicsUpdate?.(_deltaTime);
+    }
+    dispose(): void {
+        this.onDispose?.();
     }
 }
