@@ -99,8 +99,33 @@ function showVictoryOverlay() {
     text.style.transform = "translateY(0)";
 }
 
+function createFPSCounter(): void {
+    fpsElement = document.createElement("div");
+    fpsElement.style.position = "absolute";
+    fpsElement.style.top = "10px";
+    fpsElement.style.left = "10px";
+    fpsElement.style.color = "white";
+    fpsElement.style.fontFamily = "monospace";
+    fpsElement.style.fontSize = "16px";
+    fpsElement.style.zIndex = "1000";
+    document.body.appendChild(fpsElement);
+}
+
+function updateFPSCounter(delta: number): void {
+    fpsDeltas.push(delta);
+    if (fpsDeltas.length > maxDeltas) fpsDeltas.shift();
+    const avgDelta = fpsDeltas.reduce((a, b) => a + b, 0) / fpsDeltas.length;
+    const fps = Math.round(1 / avgDelta);
+    fpsElement.textContent = `FPS: ${fps}`;
+}
+
 const renderClock = new THREE.Clock();
 const scene = new THREE.Scene();
+
+// FPS counter variables
+let fpsElement: HTMLDivElement;
+const fpsDeltas: number[] = [];
+const maxDeltas = 10;
 
 // set a visible background color
 scene.background = new THREE.Color(0x87ceeb);
@@ -122,6 +147,9 @@ setRenderer(new THREE.WebGLRenderer());
 renderer.setClearColor(0x87ceeb, 1);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// Create FPS counter
+createFPSCounter();
 
 // create the level (pass the renderer DOM element for input listeners, etc.)
 const _created = createLevel(scene, mainCamera, renderer.domElement);
@@ -194,14 +222,18 @@ function setupCameraTracking() {
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
     followComponent.positionOffset = { x: 0, y: 15, z: 10 };
-    followComponent.rotationOffset = { x: 0, y: Math.PI / 4, z: 0, w: 0 };
-    followComponent.rotationMode = "lookAt";
-    followComponent.positionMode = "follow";
-    followComponent.positionSmoothFactor = 1;
+    followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
+    followComponent.rotationMode = "fixed";
+    followComponent.positionMode = "fixed";
+    followComponent.positionSmoothFactor = 0.05;
 }
 
 function renderUpdate() {
     const _delta = renderClock.getDelta();
+
+    // Update FPS counter
+    updateFPSCounter(_delta);
+
     const components = getActiveRenderComponents();
     for (let i = 0; i < components.length; i++) {
         components[i].renderUpdate!(_delta);

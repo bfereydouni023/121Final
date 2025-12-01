@@ -50,7 +50,6 @@ export function createBall(
 
     // Physics
     const rbComp = ball.addComponent(RigidbodyComponent);
-    // ensure Rapier body is dynamic and in the right place
     rbComp.rigidbody.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
     rbComp.mass = 1;
     rbComp.addCollider(RAPIER.ColliderDesc.ball(radius), false);
