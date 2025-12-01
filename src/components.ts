@@ -156,20 +156,6 @@ export class MeshComponent extends BaseComponent {
 
     renderUpdate(_deltaTime: number): void {
         const transform = this.gameObject.getComponent(TransformComponent)!;
-        // // If this GameObject has a RigidbodyComponent, prefer the rigidbody transform
-        // // (colliders follow the rigidbody). Otherwise fall back to the TransformComponent.
-        // const rb = this.gameObject.getComponent(RigidbodyComponent);
-        // if (rb && rb.rigidbody) {
-        //     const t = rb.rigidbody.translation();
-        //     this.mesh.position.set(t.x, t.y, t.z);
-        //     // Rapier rotation() returns a quaternion-like object { x,y,z,w }
-        //     const r = rb.rigidbody.rotation();
-        //     if (r && typeof (this.mesh as any).quaternion?.set === "function") {
-        //         this.mesh.quaternion.set(r.x, r.y, r.z, r.w);
-        //     }
-        // } else {
-            // }
-        
         this.mesh.position.set(
             transform.position.x,
             transform.position.y,

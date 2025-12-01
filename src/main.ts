@@ -3,6 +3,7 @@ import "./style.css";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import {
     renderer,
+    mainCamera,
     setMainCamera,
     setRenderer,
     setWorld,
@@ -107,13 +108,13 @@ scene.background = new THREE.Color(0x87ceeb);
 // add some ambient lighting so dark/shadowed areas are visible
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
-const camera = new THREE.PerspectiveCamera(
+setMainCamera(
+new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
     1000,
-);
-setMainCamera(camera);
+));
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
@@ -122,7 +123,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // create the level (pass the renderer DOM element for input listeners, etc.)
-const _created = createLevel(scene, camera, renderer.domElement);
+const _created = createLevel(scene, mainCamera, renderer.domElement);
 
 // Todo: move camera setup to a helper function
 {
@@ -130,7 +131,7 @@ const _created = createLevel(scene, camera, renderer.domElement);
     cameraObject.addComponent(TransformComponent);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
     const followComponent = cameraObject.addComponent(FollowComponent);
-    cameraComponent.camera = camera;
+    cameraComponent.camera = mainCamera;
     cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
     const ball = getObjectByID("ball");
     if (ball == null) {
@@ -147,8 +148,8 @@ const _created = createLevel(scene, camera, renderer.domElement);
 
 // update on window resize
 window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    mainCamera.aspect = window.innerWidth / window.innerHeight;
+    mainCamera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -158,7 +159,7 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
     const hits = performRaycastFromMouse(
         ev,
         renderer as THREE.WebGLRenderer,
-        camera,
+        mainCamera,
         scene,
     );
     if (hits.length === 0) return;
@@ -203,7 +204,7 @@ function renderUpdate() {
         components[i].renderUpdate!(_delta);
     }
 
-    renderer.render(scene, camera);
+    renderer.render(scene, mainCamera);
 }
 
 function physicsUpdate() {
