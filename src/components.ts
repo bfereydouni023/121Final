@@ -13,7 +13,16 @@ import type {
     Rotation,
     Transform,
 } from "./types";
-import { Camera, Light, Material, Mesh, PointLight } from "three";
+import {
+    Camera,
+    Light,
+    Material,
+    Matrix4,
+    Mesh,
+    PointLight,
+    Quaternion,
+    Vector3 as ThreeVector3,
+} from "three";
 
 class BaseComponent implements Component {
     dependencies: (new (gameObject: GameObject) => Component)[] = [];
@@ -116,7 +125,10 @@ export class RigidbodyComponent extends BaseComponent {
         useDefaultCollisionGroup: boolean = true,
     ) {
         this.removeCollider();
-        this._collider = Globals.world.createCollider(colliderDesc, this.rigidbody);
+        this._collider = Globals.world.createCollider(
+            colliderDesc,
+            this.rigidbody,
+        );
         if (useDefaultCollisionGroup)
             this._collider.setCollisionGroups(RigidbodyComponent.DEFAULT_GROUP);
     }
@@ -124,7 +136,7 @@ export class RigidbodyComponent extends BaseComponent {
     removeCollider() {
         if (this._collider) {
             Globals.world.removeCollider(this._collider, true);
-            this._collider = null;
+            this._collider = undefined!;
         }
     }
 }
@@ -224,8 +236,10 @@ export class FollowComponent extends BaseComponent {
     dependencies = [TransformComponent];
     public target: TransformComponent | null = null;
     public positionOffset: Vector3 = { x: 0, y: 5, z: -10 };
-    public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 1 };
-    public smoothFactor: number = 0.1;
+    public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 0 };
+    public positionSmoothFactor: number = 0.1;
+    public rotationSmoothFactor: number = 0.1;
+    public positionMode: "follow" | "fixed" = "follow";
     public rotationMode: "lookAt" | "fixed" = "fixed";
 
     constructor(gameObject: GameObject) {
@@ -235,53 +249,103 @@ export class FollowComponent extends BaseComponent {
     renderUpdate(_deltaTime: number): void {
         if (!this.target) return;
         const transform = this.gameObject.getComponent(TransformComponent)!;
-
-        const desiredPosition = {
-            x: this.target.position.x + this.positionOffset.x,
-            y: this.target.position.y + this.positionOffset.y,
-            z: this.target.position.z + this.positionOffset.z,
-        };
-
-        // Smoothly interpolate to the desired position
-        transform.position.x +=
-            (desiredPosition.x - transform.position.x) * this.smoothFactor;
-        transform.position.y +=
-            (desiredPosition.y - transform.position.y) * this.smoothFactor;
-        transform.position.z +=
-            (desiredPosition.z - transform.position.z) * this.smoothFactor;
-        if (this.rotationMode === "lookAt") {
-            this.pointAt(this.target.position, transform);
+        if (this.positionMode === "follow") {
+            this.moveTo(this.target.position, transform);
         }
         else {
-            transform.rotation = this.rotationOffset;
+            this.moveTo(this.positionOffset, transform);
         }
-
+        if (this.rotationMode === "lookAt") {
+            const targetQuat = this.getRotationToward(this.target.position, transform);
+            this.smoothRotateTo(targetQuat, transform);
+        } else {
+            const targetQuat = new Quaternion(
+                this.rotationOffset.x,
+                this.rotationOffset.y,
+                this.rotationOffset.z,
+                this.rotationOffset.w,
+            );
+            this.smoothRotateTo(targetQuat, transform);
+        }
+    }
+    
+    private moveTo(
+        targetPos: Vector3,
+        transform: TransformComponent,)
+        {
+        const desiredPosition = {
+            x: targetPos.x + this.positionOffset.x,
+            y: targetPos.y + this.positionOffset.y,
+            z: targetPos.z + this.positionOffset.z,
+        };
+    
+        // Smoothly interpolate to the desired position
+        transform.position.x +=
+            (desiredPosition.x - transform.position.x) *
+            this.positionSmoothFactor;
+        transform.position.y +=
+            (desiredPosition.y - transform.position.y) *
+            this.positionSmoothFactor;
+        transform.position.z +=
+            (desiredPosition.z - transform.position.z) *
+            this.positionSmoothFactor;
     }
 
-    private pointAt(targetPos: Vector3, transform: TransformComponent) {
-        // Point the camera towards the target (simple look-at)
-        const dirX = targetPos.x - transform.position.x;
-        const dirY = targetPos.y - transform.position.y;
-        const dirZ = targetPos.z - transform.position.z;
-        let length = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
-        if (length === 0) length = 0.0001; // Prevent division by zero
-        const normDir = { x: dirX / length, y: dirY / length, z: dirZ / length };
-        const desiredRotation = {
-            x: normDir.x + this.rotationOffset.x,
-            y: normDir.y + this.rotationOffset.y,
-            z: normDir.z + this.rotationOffset.z,
-            w: 0,
-        };
+    private getRotationToward(
+        targetPos: Vector3,
+        transform: TransformComponent,
+    ): Quaternion {
+        const direction = new ThreeVector3(
+            targetPos.x - transform.position.x,
+            targetPos.y - transform.position.y,
+            targetPos.z - transform.position.z,
+        ).normalize();
 
-        // Smoothly interpolate to the desired rotation
-        transform.rotation.x +=
-            (desiredRotation.x - transform.rotation.x) * this.smoothFactor;
-        transform.rotation.y +=
-            (desiredRotation.y - transform.rotation.y) * this.smoothFactor;
-        transform.rotation.z +=
-            (desiredRotation.z - transform.rotation.z) * this.smoothFactor;
-        transform.rotation.w +=
-            (desiredRotation.w - transform.rotation.w) * this.smoothFactor;
+        const up = new ThreeVector3(0, 1, 0);
+        const right = new ThreeVector3()
+            .crossVectors(up, direction)
+            .normalize();
+        const correctedUp = new ThreeVector3()
+            .crossVectors(direction, right)
+            .normalize();
+
+        // Create rotation matrix from basis vectors
+        const matrix = new Matrix4();
+        matrix.makeBasis(right, correctedUp, direction);
+
+        // Set quaternion from matrix
+        const quaternion = new Quaternion();
+        quaternion.setFromRotationMatrix(matrix);
+
+        // Apply rotation offset
+        const offsetQuat = new Quaternion(
+            this.rotationOffset.x,
+            this.rotationOffset.y,
+            this.rotationOffset.z,
+            this.rotationOffset.w,
+        );
+        quaternion.multiply(offsetQuat);
+
+        return quaternion;
+    }
+
+    private smoothRotateTo(
+        targetQuat: Quaternion,
+        transform: TransformComponent,
+    ) {
+        const currentQuat = new Quaternion(
+            transform.rotation.x,
+            transform.rotation.y,
+            transform.rotation.z,
+            transform.rotation.w,
+        );
+        currentQuat.slerp(targetQuat, this.rotationSmoothFactor);
+        transform.rotation = {
+            x: currentQuat.x,
+            y: currentQuat.y,
+            z: currentQuat.z,
+            w: currentQuat.w,
+        };
     }
 }
 

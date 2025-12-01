@@ -1,17 +1,27 @@
 import * as THREE from "three";
 import "./style.css";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { renderer, setMainCamera, setRenderer, setWorld, world } from "./globals";
+import {
+    renderer,
+    setMainCamera,
+    setRenderer,
+    setWorld,
+    world,
+} from "./globals";
 import {
     createGameObject,
     getActivePhysicsComponents,
     getActiveRenderComponents,
     getObjectByID,
-    getObjectWithComponent,
 } from "./objectSystem";
 import { createLevel } from "./levels/level1";
 import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
-import { CameraComponent, FollowComponent, ScriptComponent, TransformComponent } from "./components";
+import {
+    CameraComponent,
+    FollowComponent,
+    ScriptComponent,
+    TransformComponent,
+} from "./components";
 
 // TUNABLE PARAMETERS]
 
@@ -104,7 +114,6 @@ const camera = new THREE.PerspectiveCamera(
 );
 setMainCamera(camera);
 
-
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
 renderer.setClearColor(0x87ceeb, 1);
@@ -112,7 +121,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // create the level (pass the renderer DOM element for input listeners, etc.)
-const created = createLevel(scene, camera, renderer.domElement);
+const _created = createLevel(scene, camera, renderer.domElement);
 
 // Todo: move camera setup to a helper function
 {
@@ -121,6 +130,7 @@ const created = createLevel(scene, camera, renderer.domElement);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
     const followComponent = cameraObject.addComponent(FollowComponent);
     cameraComponent.camera = camera;
+    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
     const ball = getObjectByID("ball");
     if (ball == null) {
         console.warn("Could not find ball for camera follow");
@@ -128,7 +138,9 @@ const created = createLevel(scene, camera, renderer.domElement);
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
     followComponent.positionOffset = { x: 0, y: 15, z: 15 };
-    followComponent.rotationOffset = { x: -Math.PI / 4, y: 0, z: 0, w: 0 };
+    followComponent.rotationOffset = { x: 0, y: -Math.PI / 4, z: 0, w: 0 };
+    followComponent.rotationMode = "lookAt";
+    followComponent.positionMode = "follow";
 }
 
 // update on window resize
