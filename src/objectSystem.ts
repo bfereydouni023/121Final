@@ -118,8 +118,8 @@ export function getActiveRenderComponents(): Array<Component> {
   return components.render;
 }
 
-export function createGameObject(): GameObject {
-  const obj = new GameObjectImpl(`gameObject_${objects.length}`);
+export function createGameObject(id: string | null = null): GameObject {
+  const obj = new GameObjectImpl(id ? id.toLowerCase() : `game_object_${objects.length}`);
   objects.push(obj);
   return obj;
 }
@@ -219,4 +219,27 @@ export function getSingletonComponent<T extends SingletonComponent>(
   componentType: new () => T,
 ): T {
   return getOrCreateSingletonComponent(componentType);
+}
+
+// Warning: Slow operation, avoid using in performance-critical code
+export function getObjectByID(id: string): GameObject | null {
+  id = id.toLowerCase();
+  for (let i = 0; i < objects.length; i++) {
+    if (objects[i].id === id) {
+      return objects[i];
+    }
+  }
+  return null;
+}
+
+// Warning: Slow operation, avoid using in performance-critical code
+export function getObjectWithComponent<T extends Component>(
+  componentType: new (gameObject: GameObject) => T,
+): GameObject | null {
+  for (let i = 0; i < objects.length; i++) {
+    if (objects[i].getComponent(componentType)) {
+      return objects[i];
+    }
+  }
+  return null;
 }

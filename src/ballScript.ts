@@ -33,7 +33,7 @@ export function createBall(
       "createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.",
     );
   }
-  const ball = createGameObject();
+  const ball = createGameObject("ball");
 
   // Transform
   const t = ball.addComponent(TransformComponent);
