@@ -9,6 +9,7 @@ import {
 import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
+import type { Level } from "../types";
 
 /**
  * Build a simple level: ground, light, and a ball.
@@ -142,4 +143,25 @@ export function createLevel(
     scene.add(light);
 
     return created;
+}
+
+class Level1 implements Level {
+    id: string;
+    private isActive: boolean;
+    constructor(id: string) {
+        this.id = id;
+        this.isActive = false;
+    }
+    get active(): boolean {
+        return this.isActive;
+    }
+    set active(value: boolean) {
+        this.isActive = value;
+    }
+    destroy(): void {
+        throw new Error("Method not implemented.");
+    }
+    reset(): void {
+        throw new Error("Method not implemented.");
+    }
 }

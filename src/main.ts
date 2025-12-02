@@ -14,15 +14,17 @@ import {
     getActivePhysicsComponents,
     getActiveRenderComponents,
     getObjectByID,
+    getSingletonComponent,
 } from "./objectSystem";
 import { createLevel } from "./levels/level1";
-import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
+import { Input } from "./input";
 import {
     CameraComponent,
     FollowComponent,
     RigidbodyComponent,
     ScriptComponent,
     TransformComponent,
+    getGameObjectFromCollider,
 } from "./components";
 
 // TUNABLE PARAMETERS]
@@ -146,6 +148,8 @@ createFPSCounter();
 // create the level (pass the renderer DOM element for input listeners, etc.)
 const _created = createLevel(scene, mainCamera, renderer.domElement);
 
+const input = getSingletonComponent(Input);
+
 // Todo: move camera setup to a helper function
 setupCameraTracking();
 
@@ -156,20 +160,19 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Raycast click detection: delegate logic to input helpers and invoke ball script onClicked
+// Raycast click detection leverages the Input singleton + Rapier queries
 window.addEventListener("mousedown", async (ev: MouseEvent) => {
     ev.preventDefault();
-    const hits = performRaycastFromMouse(
+    const hit = input.raycastPhysicsFromMouse(
         ev,
         renderer as THREE.WebGLRenderer,
         mainCamera,
-        scene,
+        {
+            predicate: (collider) =>
+                getGameObjectFromCollider(collider)?.id === "ball",
+        },
     );
-    if (hits.length === 0) return;
-    const tagged = findFirstTaggedHit(hits, "ball");
-    if (!tagged) return;
-
-    const go = tagged.userData?.gameObject;
+    const go = hit?.gameObject;
     if (!go) return;
 
     // Prefer calling a script hook on the ball if present
@@ -177,24 +180,6 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
     if (script?.onClicked) {
         script.onClicked(ev);
         return;
-    }
-
-    // Fallback: try to apply impulse directly if no script is present (keeps previous behavior)
-    const rbComp = go.getComponent(RigidbodyComponent);
-    if (rbComp) {
-        // apply a small random impulse as a fallback
-        const dir = new THREE.Vector3(
-            Math.random() * 2 - 1,
-            Math.random() * 0.8 + 0.2,
-            Math.random() * 2 - 1,
-        ).normalize();
-        const strength = 5 + Math.random() * 10;
-        const impulse = {
-            x: dir.x * strength,
-            y: dir.y * strength,
-            z: dir.z * strength,
-        };
-        rbComp.rigidbody.applyImpulse(impulse, true);
     }
 });
 
