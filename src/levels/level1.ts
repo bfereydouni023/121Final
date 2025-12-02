@@ -6,8 +6,8 @@ import {
     MeshComponent,
     RigidbodyComponent,
 } from "../components";
-import { createBall } from "../ballScript";
-import { createGoal } from "../goalScript";
+import { createBall } from "../objects/ballScript";
+import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
 
 /**

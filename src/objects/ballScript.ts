@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { createGameObject } from "./objectSystem";
+import { createGameObject } from "../objectSystem";
 import {
     TransformComponent,
     MeshComponent,
     RigidbodyComponent,
     ScriptComponent,
-} from "./components";
+} from "../components";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
