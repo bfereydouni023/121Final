@@ -15,11 +15,7 @@ import type { Level } from "../types";
  * Build a simple level: ground, light, and a ball.
  * Adds meshes to the provided scene and returns created game objects.
  */
-export function createLevel(
-    scene: THREE.Scene,
-    camera: THREE.Camera,
-    domElement: HTMLElement = document.body,
-) {
+export function createLevel(scene: THREE.Scene, camera: THREE.Camera) {
     // Track created objects for reference
     const created: Array<{ id: string }> = [];
 
@@ -70,7 +66,7 @@ export function createLevel(
     //#endregion --------------------------------------------------------
 
     //#region  Create the ball -------------------------------------------
-    const ball = createBall(scene, camera, domElement);
+    const ball = createBall(scene, camera);
     created.push({ id: ball.id });
     //#endregion --------------------------------------------------------
 
@@ -145,7 +141,7 @@ export function createLevel(
     return created;
 }
 
-class Level1 implements Level {
+class _Level1 implements Level {
     id: string;
     private isActive: boolean;
     constructor(id: string) {

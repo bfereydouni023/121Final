@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { createGameObject } from "../objectSystem";
+import { Input } from "../input";
+import type { PointerInputEvent } from "../input";
+import { createGameObject, getSingletonComponent } from "../objectSystem";
 import {
     TransformComponent,
     MeshComponent,
@@ -12,20 +14,17 @@ import {
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
  * that supports click-drag-release to launch the ball in the opposite direction.
  *
- * NOTE: This function now requires the active camera and the DOM element used for pointer events
- * so it can raycast pointer positions into world space.
+ * NOTE: This function now requires the active camera. Pointer interactions are wired through the
+ * global Input event bus so individual objects no longer need direct DOM access.
  */
-export function createBall(
-    scene: THREE.Scene,
-    camera: THREE.Camera,
-    domElement: HTMLElement = document.body,
-) {
+export function createBall(scene: THREE.Scene, camera: THREE.Camera) {
     // validate camera early to give a clear error
     if (!camera) {
         throw new Error(
             "createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.",
         );
     }
+    const input = getSingletonComponent(Input);
     const ball = createGameObject("ball");
 
     // Transform
@@ -67,17 +66,11 @@ export function createBall(
     const dragStartWorld = new THREE.Vector3();
     let activePointerId: number | null = null;
 
-    function getPointerNDCCoords(event: PointerEvent) {
-        const rect = domElement.getBoundingClientRect();
-        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    }
-
     function pointerToWorldOnBallPlane(
-        event: PointerEvent,
+        event: PointerInputEvent,
         out: THREE.Vector3,
     ) {
-        getPointerNDCCoords(event);
+        pointer.set(event.normalizedPosition.x, event.normalizedPosition.y);
         // guard the camera before calling into Three.js
         if (!camera) {
             console.error(
@@ -104,34 +97,28 @@ export function createBall(
         return false;
     }
 
-    function onPointerDown(ev: PointerEvent) {
+    function onPointerDown(ev: PointerInputEvent) {
         // only left button
         if (ev.button !== 0) return;
         if (!pointerToWorldOnBallPlane(ev, tmpVec)) return;
 
         // quick raycast to ensure we clicked the ball mesh
-        getPointerNDCCoords(ev);
-        raycaster.setFromCamera(pointer, camera);
         const intersects = raycaster.intersectObject(meshComp.mesh, false);
         if (intersects.length === 0) return;
 
         dragging = true;
         activePointerId = ev.pointerId;
         dragStartWorld.copy(tmpVec);
-        // prevent page drag/selection while interacting
-        domElement.setPointerCapture?.(ev.pointerId);
     }
 
-    function onPointerMove(ev: PointerEvent) {
+    function onPointerMove(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
         // optional: you could show a visual indicator here using the world point
         pointerToWorldOnBallPlane(ev, tmpVec);
     }
 
-    function onPointerUp(ev: PointerEvent) {
+    function onPointerUp(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
-        // release pointer capture
-        domElement.releasePointerCapture?.(ev.pointerId);
 
         const dragEndWorld = new THREE.Vector3();
         const got = pointerToWorldOnBallPlane(ev, dragEndWorld);
@@ -165,20 +152,17 @@ export function createBall(
         activePointerId = null;
     }
 
-    // Attach pointer listeners to the provided DOM element
-    domElement.addEventListener("pointerdown", onPointerDown);
-    domElement.addEventListener("pointermove", onPointerMove);
-    domElement.addEventListener("pointerup", onPointerUp);
-    domElement.addEventListener("pointercancel", onPointerUp);
-    domElement.addEventListener("pointerleave", onPointerUp);
+    const removeListeners = [
+        input.addEventListener("pointerDown", onPointerDown),
+        input.addEventListener("pointerMove", onPointerMove),
+        input.addEventListener("pointerUp", onPointerUp),
+        input.addEventListener("pointerCancel", onPointerUp),
+        input.addEventListener("pointerLeave", onPointerUp),
+    ];
 
     // Hook to clean up listeners if the script/component system supports disposal
     script.onDispose = () => {
-        domElement.removeEventListener("pointerdown", onPointerDown);
-        domElement.removeEventListener("pointermove", onPointerMove);
-        domElement.removeEventListener("pointerup", onPointerUp);
-        domElement.removeEventListener("pointercancel", onPointerUp);
-        domElement.removeEventListener("pointerleave", onPointerUp);
+        removeListeners.forEach((dispose) => dispose());
     };
 
     return ball;

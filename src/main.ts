@@ -21,7 +21,6 @@ import { Input } from "./input";
 import {
     CameraComponent,
     FollowComponent,
-    RigidbodyComponent,
     ScriptComponent,
     TransformComponent,
     getGameObjectFromCollider,
@@ -145,10 +144,11 @@ document.body.appendChild(renderer.domElement);
 // Create FPS counter
 createFPSCounter();
 
-// create the level (pass the renderer DOM element for input listeners, etc.)
-const _created = createLevel(scene, mainCamera, renderer.domElement);
-
 const input = getSingletonComponent(Input);
+input.setPointerElement(renderer.domElement);
+
+// create the level
+const _created = createLevel(scene, mainCamera);
 
 // Todo: move camera setup to a helper function
 setupCameraTracking();
@@ -161,10 +161,8 @@ window.addEventListener("resize", () => {
 });
 
 // Raycast click detection leverages the Input singleton + Rapier queries
-window.addEventListener("mousedown", async (ev: MouseEvent) => {
-    ev.preventDefault();
-    const hit = input.raycastPhysicsFromMouse(
-        ev,
+input.addEventListener("mouseDown", (mouseEvent) => {
+    const hit = input.raycastPhysics(
         renderer as THREE.WebGLRenderer,
         mainCamera,
         {
@@ -175,12 +173,8 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
     const go = hit?.gameObject;
     if (!go) return;
 
-    // Prefer calling a script hook on the ball if present
     const script = go.getComponent(ScriptComponent);
-    if (script?.onClicked) {
-        script.onClicked(ev);
-        return;
-    }
+    script?.onClicked?.(mouseEvent);
 });
 
 renderer.setAnimationLoop(renderUpdate);

@@ -13,6 +13,7 @@ import type {
     Rotation,
     Transform,
 } from "./types";
+import type { MouseInputEvent } from "./input";
 import {
     Camera,
     Light,
@@ -370,7 +371,7 @@ export class ScriptComponent extends BaseComponent {
     /**
      * @requires Requires a {@link RigidbodyComponent} or {@link MeshComponent} to be present on the same GameObject.
      */
-    public onClicked?(event: MouseEvent): void;
+    public onClicked?(event: MouseEvent | MouseInputEvent): void;
     public onDispose?(): void;
     private hasStarted: boolean = false;
 
