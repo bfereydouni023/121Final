@@ -52,9 +52,6 @@ class GameObjectImpl implements GameObject {
     getComponent<T extends Component>(
         componentType: new (gameObject: GameObject) => T,
     ): T | null {
-        if ((componentType as any) === TransformComponent && this.transform) {
-            return this.transform as any as T;
-        }
         for (const component of this.components) {
             if (component instanceof componentType) {
                 return component as T;
@@ -182,16 +179,18 @@ function getOrCreateSingletonComponent<T extends SingletonComponent>(
     if (components.singleton.has(component)) {
         return components.singleton.get(component) as T;
     }
-    const componentInstance = new component();
-    componentInstance.create?.();
-    components.singleton.set(component, componentInstance);
-    if (componentInstance.physicsUpdate) {
-        components.physics.push(componentInstance as any as Component);
+    const singletonInstance = new component();
+    singletonInstance.create?.();
+    components.singleton.set(component, singletonInstance);
+    // Casting to unknown first as SingletonComponent may not have a dependency list,
+    // which is unneeded for the update lists.
+    if (singletonInstance.physicsUpdate) {
+        components.physics.push(singletonInstance as unknown as Component);
     }
-    if (componentInstance.renderUpdate) {
-        components.render.push(componentInstance as any as Component);
+    if (singletonInstance.renderUpdate) {
+        components.render.push(singletonInstance as unknown as Component);
     }
-    return componentInstance;
+    return singletonInstance;
 }
 
 export function destroySingletonComponent<T extends SingletonComponent>(
@@ -203,7 +202,7 @@ export function destroySingletonComponent<T extends SingletonComponent>(
     components.singleton.delete(component);
     if (componentInstance.physicsUpdate) {
         const index = components.physics.indexOf(
-            componentInstance as any as Component,
+            componentInstance as unknown as Component,
         );
         if (index !== -1) {
             components.physics.splice(index, 1);
@@ -211,7 +210,7 @@ export function destroySingletonComponent<T extends SingletonComponent>(
     }
     if (componentInstance.renderUpdate) {
         const index = components.render.indexOf(
-            componentInstance as any as Component,
+            componentInstance as unknown as Component,
         );
         if (index !== -1) {
             components.render.splice(index, 1);

@@ -3,6 +3,7 @@ import "./style.css";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import {
     renderer,
+    mainCamera,
     setMainCamera,
     setRenderer,
     setWorld,
@@ -19,6 +20,7 @@ import { performRaycastFromMouse, findFirstTaggedHit } from "./input";
 import {
     CameraComponent,
     FollowComponent,
+    RigidbodyComponent,
     ScriptComponent,
     TransformComponent,
 } from "./components";
@@ -33,22 +35,11 @@ world.timestep = 1 / 60;
 const physicsClock = new THREE.Clock();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
-// Start the physics update loop
-// keep the interval id so we can stop physics on victory
-let physicsInterval: number | null = window.setInterval(
-    physicsUpdate,
-    world.timestep * 1000,
-);
 let gamePaused = false;
 
 function pauseGameForVictory() {
     if (gamePaused) return;
     gamePaused = true;
-    // stop physics
-    if (physicsInterval !== null) {
-        clearInterval(physicsInterval);
-        physicsInterval = null;
-    }
     // stop render loop
     if (typeof renderer?.setAnimationLoop === "function") {
         renderer.setAnimationLoop(null);
@@ -97,8 +88,36 @@ function showVictoryOverlay() {
     text.style.transform = "translateY(0)";
 }
 
+function createFPSCounter(): void {
+    fpsElement = document.createElement("div");
+    fpsElement.style.position = "absolute";
+    fpsElement.style.top = "10px";
+    fpsElement.style.left = "10px";
+    fpsElement.style.color = "white";
+    fpsElement.style.fontFamily = "monospace";
+    fpsElement.style.fontSize = "16px";
+    fpsElement.style.zIndex = "1000";
+    document.body.appendChild(fpsElement);
+}
+
+function updateFPSCounter(delta: number): void {
+    fpsDeltas.push(delta);
+    if (fpsDeltas.length > maxDeltas) fpsDeltas.shift();
+    const avgDelta = fpsDeltas.reduce((a, b) => a + b, 0) / fpsDeltas.length;
+    const fps = Math.round(1 / avgDelta);
+    fpsElement.textContent = `FPS: ${fps}`;
+}
+
 const renderClock = new THREE.Clock();
 const scene = new THREE.Scene();
+
+// FPS counter variables
+let fpsElement: HTMLDivElement;
+const fpsDeltas: number[] = [];
+const maxDeltas = 10;
+
+// Physics accumulator for fixed timestep
+let physicsAccumulator = 0;
 
 // set a visible background color
 scene.background = new THREE.Color(0x87ceeb);
@@ -106,13 +125,14 @@ scene.background = new THREE.Color(0x87ceeb);
 // add some ambient lighting so dark/shadowed areas are visible
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
-const camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000,
+setMainCamera(
+    new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000,
+    ),
 );
-setMainCamera(camera);
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
@@ -120,33 +140,19 @@ renderer.setClearColor(0x87ceeb, 1);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Create FPS counter
+createFPSCounter();
+
 // create the level (pass the renderer DOM element for input listeners, etc.)
-const _created = createLevel(scene, camera, renderer.domElement);
+const _created = createLevel(scene, mainCamera, renderer.domElement);
 
 // Todo: move camera setup to a helper function
-{
-    const cameraObject = createGameObject("Main Camera");
-    cameraObject.addComponent(TransformComponent);
-    const cameraComponent = cameraObject.addComponent(CameraComponent);
-    const followComponent = cameraObject.addComponent(FollowComponent);
-    cameraComponent.camera = camera;
-    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
-    const ball = getObjectByID("ball");
-    if (ball == null) {
-        console.warn("Could not find ball for camera follow");
-    } else {
-        followComponent.target = ball.getComponent(TransformComponent)!;
-    }
-    followComponent.positionOffset = { x: 0, y: 15, z: 15 };
-    followComponent.rotationOffset = { x: 0, y: -Math.PI / 4, z: 0, w: 0 };
-    followComponent.rotationMode = "lookAt";
-    followComponent.positionMode = "follow";
-}
+setupCameraTracking();
 
 // update on window resize
 window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    mainCamera.aspect = window.innerWidth / window.innerHeight;
+    mainCamera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
@@ -156,36 +162,26 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
     const hits = performRaycastFromMouse(
         ev,
         renderer as THREE.WebGLRenderer,
-        camera,
+        mainCamera,
         scene,
     );
     if (hits.length === 0) return;
     const tagged = findFirstTaggedHit(hits, "ball");
     if (!tagged) return;
 
-    const go = (tagged as any).userData?.gameObject;
+    const go = tagged.userData?.gameObject;
     if (!go) return;
 
     // Prefer calling a script hook on the ball if present
-    const script = go.getComponent ? go.getComponent(ScriptComponent) : null;
-    if (script && (script as any).onClicked) {
-        try {
-            (script as any).onClicked(ev);
-        } catch (e) {
-            console.error("onClicked error", e);
-        }
+    const script = go.getComponent(ScriptComponent);
+    if (script?.onClicked) {
+        script.onClicked(ev);
         return;
     }
 
     // Fallback: try to apply impulse directly if no script is present (keeps previous behavior)
-    const rbComp = go.getComponent
-        ? go.getComponent((await import("./components")).RigidbodyComponent)
-        : null;
-    if (
-        rbComp &&
-        rbComp.rigidbody &&
-        typeof (rbComp.rigidbody as any).applyImpulse === "function"
-    ) {
+    const rbComp = go.getComponent(RigidbodyComponent);
+    if (rbComp) {
         // apply a small random impulse as a fallback
         const dir = new THREE.Vector3(
             Math.random() * 2 - 1,
@@ -198,20 +194,58 @@ window.addEventListener("mousedown", async (ev: MouseEvent) => {
             y: dir.y * strength,
             z: dir.z * strength,
         };
-        (rbComp.rigidbody as any).applyImpulse(impulse, true);
+        rbComp.rigidbody.applyImpulse(impulse, true);
     }
 });
 
 renderer.setAnimationLoop(renderUpdate);
 
+function setupCameraTracking() {
+    const cameraObject = createGameObject("Main Camera");
+    cameraObject.addComponent(TransformComponent);
+    const followComponent = cameraObject.addComponent(FollowComponent);
+    const cameraComponent = cameraObject.addComponent(CameraComponent);
+    cameraComponent.camera = mainCamera;
+    cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
+    const ball = getObjectByID("ball");
+    if (ball == null) {
+        console.warn("Could not find ball for camera follow");
+    } else {
+        followComponent.target = ball.getComponent(TransformComponent)!;
+    }
+    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
+    followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
+    followComponent.rotationMode = "fixed";
+    followComponent.positionMode = "follow";
+    followComponent.positionSmoothFactor = 0.1;
+}
+
 function renderUpdate() {
-    const _delta = renderClock.getDelta();
-    const components = getActiveRenderComponents();
-    for (let i = 0; i < components.length; i++) {
-        components[i].renderUpdate!(_delta);
+    const delta = renderClock.getDelta();
+
+    // Update FPS counter
+    updateFPSCounter(delta);
+
+    // Update physics with fixed timestep
+    physicsAccumulator += delta;
+    while (physicsAccumulator >= world.timestep) {
+        physicsUpdate();
+        physicsAccumulator -= world.timestep;
     }
 
-    renderer.render(scene, camera);
+    // Update physics with fixed timestep
+    physicsAccumulator += delta;
+    while (physicsAccumulator >= world.timestep) {
+        physicsUpdate();
+        physicsAccumulator -= world.timestep;
+    }
+
+    const components = getActiveRenderComponents();
+    for (let i = 0; i < components.length; i++) {
+        components[i].renderUpdate!(delta);
+    }
+
+    renderer.render(scene, mainCamera);
 }
 
 function physicsUpdate() {

@@ -115,8 +115,16 @@ export class RigidbodyComponent extends BaseComponent {
             transform.dirty = false;
         } else {
             const translation = this.rigidbody.translation();
-            transform.position = { ...translation };
-            transform.rotation = this.rigidbody.rotation();
+            const rotation = this.rigidbody.rotation();
+            const position = transform.position;
+            position.x = translation.x;
+            position.y = translation.y;
+            position.z = translation.z;
+            const rot = transform.rotation;
+            rot.x = rotation.x;
+            rot.y = rotation.y;
+            rot.z = rotation.z;
+            rot.w = rotation.w;
         }
     }
 
@@ -155,30 +163,14 @@ export class MeshComponent extends BaseComponent {
     }
 
     renderUpdate(_deltaTime: number): void {
-        // If this GameObject has a RigidbodyComponent, prefer the rigidbody transform
-        // (colliders follow the rigidbody). Otherwise fall back to the TransformComponent.
-        const rb = this.gameObject.getComponent(RigidbodyComponent);
-        if (rb && rb.rigidbody) {
-            const t = rb.rigidbody.translation();
-            this.mesh.position.set(t.x, t.y, t.z);
-            // Rapier rotation() returns a quaternion-like object { x,y,z,w }
-            const r = rb.rigidbody.rotation();
-            if (r && typeof (this.mesh as any).quaternion?.set === "function") {
-                this.mesh.quaternion.set(r.x, r.y, r.z, r.w);
-            }
-        } else {
-            //For meshes without rigidbodies, use TransformComponent
-            const transform = this.gameObject.getComponent(TransformComponent)!;
-            this.mesh.position.set(
-                transform.position.x,
-                transform.position.y,
-                transform.position.z,
-            );
-            const rot = transform.rotation;
-            this.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
-        }
-
         const transform = this.gameObject.getComponent(TransformComponent)!;
+        this.mesh.position.set(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
+        );
+        const rot = transform.rotation;
+        this.mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w);
         this.mesh.scale.set(
             transform.scale.x,
             transform.scale.y,
@@ -251,12 +243,14 @@ export class FollowComponent extends BaseComponent {
         const transform = this.gameObject.getComponent(TransformComponent)!;
         if (this.positionMode === "follow") {
             this.moveTo(this.target.position, transform);
-        }
-        else {
+        } else {
             this.moveTo(this.positionOffset, transform);
         }
         if (this.rotationMode === "lookAt") {
-            const targetQuat = this.getRotationToward(this.target.position, transform);
+            const targetQuat = this.getRotationToward(
+                this.target.position,
+                transform,
+            );
             this.smoothRotateTo(targetQuat, transform);
         } else {
             const targetQuat = new Quaternion(
@@ -268,17 +262,14 @@ export class FollowComponent extends BaseComponent {
             this.smoothRotateTo(targetQuat, transform);
         }
     }
-    
-    private moveTo(
-        targetPos: Vector3,
-        transform: TransformComponent,)
-        {
+
+    private moveTo(targetPos: Vector3, transform: TransformComponent) {
         const desiredPosition = {
             x: targetPos.x + this.positionOffset.x,
             y: targetPos.y + this.positionOffset.y,
             z: targetPos.z + this.positionOffset.z,
         };
-    
+
         // Smoothly interpolate to the desired position
         transform.position.x +=
             (desiredPosition.x - transform.position.x) *
@@ -289,6 +280,7 @@ export class FollowComponent extends BaseComponent {
         transform.position.z +=
             (desiredPosition.z - transform.position.z) *
             this.positionSmoothFactor;
+        transform.dirty = true;
     }
 
     private getRotationToward(
@@ -354,6 +346,7 @@ export class ScriptComponent extends BaseComponent {
     public onStart?(): void;
     public onUpdate?(_deltaTime: number): void;
     public onPhysicsUpdate?(_deltaTime: number): void;
+    public onDispose?(): void;
     private hasStarted: boolean = false;
 
     create(): void {
@@ -368,5 +361,8 @@ export class ScriptComponent extends BaseComponent {
     }
     physicsUpdate(_deltaTime: number): void {
         this.onPhysicsUpdate?.(_deltaTime);
+    }
+    dispose(): void {
+        this.onDispose?.();
     }
 }

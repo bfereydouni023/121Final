@@ -1,11 +1,4 @@
-import type { SingletonComponent, Vector3 } from "./types.ts";
-import {
-    mainCamera,
-    mouseInteractionGroup,
-    renderer,
-    world,
-} from "./globals.ts";
-import { Ray } from "@dimforge/rapier3d-compat";
+import type { SingletonComponent } from "./types.ts";
 import * as THREE from "three";
 
 export class Input implements SingletonComponent {
@@ -90,7 +83,7 @@ export function findFirstTaggedHit(
     for (const hit of hits) {
         let obj: THREE.Object3D<THREE.Object3DEventMap> | null = hit.object;
         while (obj) {
-            const type = (obj as any).userData?.type;
+            const type = obj.userData?.type;
             if (type === tag) return obj;
             obj = obj.parent;
         }
