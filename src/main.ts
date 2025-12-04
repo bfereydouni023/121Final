@@ -16,7 +16,6 @@ import {
     getObjectByID,
     getSingletonComponent,
 } from "./objectSystem";
-import { createLevel } from "./levels/level1";
 import { Input } from "./input";
 import {
     CameraComponent,
@@ -25,6 +24,7 @@ import {
     TransformComponent,
     getGameObjectFromCollider,
 } from "./components";
+import { TweenManager } from "./tweenManager";
 
 // TUNABLE PARAMETERS]
 
@@ -145,10 +145,8 @@ document.body.appendChild(renderer.domElement);
 createFPSCounter();
 
 const input = getSingletonComponent(Input);
+const tweenManager = getSingletonComponent(TweenManager);
 input.setPointerElement(renderer.domElement);
-
-// create the level
-const _created = createLevel(scene, mainCamera);
 
 // Todo: move camera setup to a helper function
 setupCameraTracking();
@@ -177,7 +175,7 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
-renderer.setAnimationLoop(renderUpdate);
+renderer.setAnimationLoop(gameLoop);
 
 function setupCameraTracking() {
     const cameraObject = createGameObject("Main Camera");
@@ -199,7 +197,7 @@ function setupCameraTracking() {
     followComponent.positionSmoothFactor = 0.1;
 }
 
-function renderUpdate() {
+function gameLoop() {
     const delta = renderClock.getDelta();
 
     // Update FPS counter
@@ -212,13 +210,12 @@ function renderUpdate() {
         physicsAccumulator -= world.timestep;
     }
 
-    // Update physics with fixed timestep
-    physicsAccumulator += delta;
-    while (physicsAccumulator >= world.timestep) {
-        physicsUpdate();
-        physicsAccumulator -= world.timestep;
-    }
+    tweenManager.updateTweens(delta);
 
+    renderUpdate(delta);
+}
+
+function renderUpdate(delta: number) {
     const components = getActiveRenderComponents();
     for (let i = 0; i < components.length; i++) {
         components[i].renderUpdate!(delta);

@@ -16,7 +16,7 @@ export interface Transform {
     rotation: Rotation;
 }
 
-export interface Level {
+export interface Level extends Resettable {
     id: string;
     get active(): boolean;
     set active(value: boolean);
@@ -65,4 +65,8 @@ export interface RaycastHit {
     distance: number;
     collider: Collider;
     gameObject: GameObject | null;
+}
+
+export interface Resettable {
+    reset(): void;
 }

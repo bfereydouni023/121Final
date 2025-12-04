@@ -127,11 +127,14 @@ export function getAllGameObjects(): Array<GameObject> {
     return Array.from(objects);
 }
 
-export function destroyGameObject(gameObject: GameObject): void {
-    const index = objects.indexOf(gameObject);
-    if (index !== -1) {
-        objects.splice(index, 1);
-        gameObject.dispose();
+export function destroyGameObject(...gameObject: GameObject[]): void {
+    const toRemove = new Set(gameObject);
+    for (let i = objects.length - 1; i >= 0; i--) {
+        if (toRemove.has(objects[i])) {
+            const obj = objects[i];
+            obj.dispose();
+            objects.splice(i, 1);
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import {
     RigidbodyComponent,
     ScriptComponent,
 } from "../components";
+import { mainCamera } from "../globals";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -17,9 +18,9 @@ import {
  * NOTE: This function now requires the active camera. Pointer interactions are wired through the
  * global Input event bus so individual objects no longer need direct DOM access.
  */
-export function createBall(scene: THREE.Scene, camera: THREE.Camera) {
+export function createBall(scene: THREE.Scene) {
     // validate camera early to give a clear error
-    if (!camera) {
+    if (!mainCamera) {
         throw new Error(
             "createBall: invalid camera passed. Ensure you pass a valid THREE.Camera and call createBall after creating the camera.",
         );
@@ -72,13 +73,13 @@ export function createBall(scene: THREE.Scene, camera: THREE.Camera) {
     ) {
         pointer.set(event.normalizedPosition.x, event.normalizedPosition.y);
         // guard the camera before calling into Three.js
-        if (!camera) {
+        if (!mainCamera) {
             console.error(
                 "pointerToWorldOnBallPlane: invalid camera, aborting raycast",
             );
             return false;
         }
-        raycaster.setFromCamera(pointer, camera);
+        raycaster.setFromCamera(pointer, mainCamera);
 
         // Use a horizontal plane at the ball's current Y so drag is constrained to XZ (horizontal) movement.
         // This makes dragging map to world X/Z only.
