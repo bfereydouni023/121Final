@@ -1,3 +1,5 @@
+import type { Collider } from "@dimforge/rapier3d-compat";
+
 export interface Vector3 {
     x: number;
     y: number;
@@ -12,6 +14,14 @@ export interface Transform {
     position: Vector3;
     scale: Vector3;
     rotation: Rotation;
+}
+
+export interface Level {
+    id: string;
+    get active(): boolean;
+    set active(value: boolean);
+    destroy(): void;
+    reset(): void;
 }
 
 export interface GameObject {
@@ -47,4 +57,12 @@ export interface SingletonComponent {
     renderUpdate?(deltaTime: number): void;
     physicsUpdate?(deltaTime: number): void;
     dispose?(): void;
+}
+
+export interface RaycastHit {
+    point: Vector3;
+    normal: Vector3;
+    distance: number;
+    collider: Collider;
+    gameObject: GameObject | null;
 }

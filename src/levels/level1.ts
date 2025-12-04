@@ -6,19 +6,16 @@ import {
     MeshComponent,
     RigidbodyComponent,
 } from "../components";
-import { createBall } from "../ballScript";
-import { createGoal } from "../goalScript";
+import { createBall } from "../objects/ballScript";
+import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
+import type { Level } from "../types";
 
 /**
  * Build a simple level: ground, light, and a ball.
  * Adds meshes to the provided scene and returns created game objects.
  */
-export function createLevel(
-    scene: THREE.Scene,
-    camera: THREE.Camera,
-    domElement: HTMLElement = document.body,
-) {
+export function createLevel(scene: THREE.Scene, camera: THREE.Camera) {
     // Track created objects for reference
     const created: Array<{ id: string }> = [];
 
@@ -69,7 +66,7 @@ export function createLevel(
     //#endregion --------------------------------------------------------
 
     //#region  Create the ball -------------------------------------------
-    const ball = createBall(scene, camera, domElement);
+    const ball = createBall(scene, camera);
     created.push({ id: ball.id });
     //#endregion --------------------------------------------------------
 
@@ -142,4 +139,25 @@ export function createLevel(
     scene.add(light);
 
     return created;
+}
+
+class _Level1 implements Level {
+    id: string;
+    private isActive: boolean;
+    constructor(id: string) {
+        this.id = id;
+        this.isActive = false;
+    }
+    get active(): boolean {
+        return this.isActive;
+    }
+    set active(value: boolean) {
+        this.isActive = value;
+    }
+    destroy(): void {
+        throw new Error("Method not implemented.");
+    }
+    reset(): void {
+        throw new Error("Method not implemented.");
+    }
 }

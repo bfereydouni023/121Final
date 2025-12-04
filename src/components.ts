@@ -13,6 +13,7 @@ import type {
     Rotation,
     Transform,
 } from "./types";
+import type { MouseInputEvent } from "./input";
 import {
     Camera,
     Light,
@@ -33,6 +34,23 @@ class BaseComponent implements Component {
     get gameObject(): GameObject {
         return this._gameObject;
     }
+}
+
+const colliderOwners = new WeakMap<Collider, GameObject>();
+
+export function getGameObjectFromCollider(
+    collider: Collider,
+): GameObject | null {
+    return colliderOwners.get(collider) ?? null;
+}
+
+function registerColliderOwner(collider: Collider, owner: GameObject) {
+    colliderOwners.set(collider, owner);
+}
+
+function unregisterColliderOwner(collider?: Collider) {
+    if (!collider) return;
+    colliderOwners.delete(collider);
 }
 
 /**
@@ -101,9 +119,11 @@ export class RigidbodyComponent extends BaseComponent {
             ColliderDesc.ball(5),
             this.rigidbody,
         );
+        registerColliderOwner(this._collider, this.gameObject);
     }
 
     dispose() {
+        unregisterColliderOwner(this._collider);
         Globals.world.removeRigidBody(this.rigidbody);
     }
 
@@ -139,10 +159,12 @@ export class RigidbodyComponent extends BaseComponent {
         );
         if (useDefaultCollisionGroup)
             this._collider.setCollisionGroups(RigidbodyComponent.DEFAULT_GROUP);
+        registerColliderOwner(this._collider, this.gameObject);
     }
 
     removeCollider() {
         if (this._collider) {
+            unregisterColliderOwner(this._collider);
             Globals.world.removeCollider(this._collider, true);
             this._collider = undefined!;
         }
@@ -344,8 +366,12 @@ export class FollowComponent extends BaseComponent {
 export class ScriptComponent extends BaseComponent {
     public onCreate?(): void;
     public onStart?(): void;
-    public onUpdate?(_deltaTime: number): void;
-    public onPhysicsUpdate?(_deltaTime: number): void;
+    public onUpdate?(deltaTime: number): void;
+    public onPhysicsUpdate?(deltaTime: number): void;
+    /**
+     * @requires Requires a {@link RigidbodyComponent} or {@link MeshComponent} to be present on the same GameObject.
+     */
+    public onClicked?(event: MouseEvent | MouseInputEvent): void;
     public onDispose?(): void;
     private hasStarted: boolean = false;
 
