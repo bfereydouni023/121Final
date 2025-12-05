@@ -1,11 +1,8 @@
 import { Group, Tween } from "@tweenjs/tween.js";
 import type { SingletonComponent } from "./types.ts";
 
-type AnyTweenTarget = Record<string, unknown>;
-type AnyTween = Tween<AnyTweenTarget>;
-
 interface TrackedTween {
-    tween: AnyTween;
+    tween: Tween;
     completed: boolean;
 }
 
@@ -18,12 +15,12 @@ export class TweenManager implements SingletonComponent {
      * @param target
      * @returns
      */
-    createTween<T extends AnyTweenTarget>(target: T): Tween<T> {
+    createTween<T extends object>(target: T): Tween<T> {
         const tween = new Tween(target);
         this.group.add(tween);
 
         const tracked: TrackedTween = {
-            tween: tween as unknown as AnyTween,
+            tween: tween,
             completed: false,
         };
 

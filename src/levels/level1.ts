@@ -9,7 +9,7 @@ import {
 import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
-import type { GameObject, Level, Resettable } from "../types";
+import type { GameObject, Level } from "../types";
 import { scene } from "../globals";
 import { IsResettable, ResetGameObjects } from "../utilities";
 

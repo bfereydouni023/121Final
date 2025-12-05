@@ -1,9 +1,10 @@
 import { World } from "@dimforge/rapier3d-compat";
-import { PerspectiveCamera, WebGLRenderer, Scene } from "three";
+import { WebGLRenderer, Scene } from "three";
+import type { MainCamera } from "./types";
 
 export let world: World;
 export let renderer: WebGLRenderer;
-export let mainCamera: PerspectiveCamera;
+export let mainCamera: MainCamera;
 export let scene: Scene;
 
 export function setWorld(w: World) {
@@ -14,7 +15,7 @@ export function setRenderer(r: WebGLRenderer) {
     renderer = r;
 }
 
-export function setMainCamera(c: PerspectiveCamera) {
+export function setMainCamera(c: MainCamera) {
     mainCamera = c;
 }
 
