@@ -9,11 +9,9 @@ export class SerializationSystem implements SingletonComponent {
     private static readonly DEBOUNCE_DELAY = 1000;
     private gameState: SerializedGameState | null = null;
     private debounceTimeout: number | null = null;
+
     create(): void {
         this.gameState = this.load();
-        if (this.gameState) {
-            console.log("Game state loaded:", this.gameState);
-        }
         window.addEventListener("beforeunload", () => {
             if (this.gameState) {
                 this.saveImmediate(this.gameState);
@@ -67,5 +65,13 @@ export class SerializationSystem implements SingletonComponent {
         }
         this.gameState.levelID = levelID;
         this.save(this.gameState);
+    }
+
+    getInventoryMemento(): Record<string, number> {
+        return this.gameState ? this.gameState.inventory : {};
+    }
+
+    getLevel(): string {
+        return this.gameState ? this.gameState.levelID : "level1";
     }
 }
