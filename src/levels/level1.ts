@@ -10,7 +10,8 @@ import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { createGameObject } from "../objectSystem";
+import { createGameObject, destroyGameObject } from "../objectSystem";
+import { getObjectByID } from "../objectSystem";
 
 export class Level1 extends BaseLevel {
     constructor() {
@@ -64,11 +65,6 @@ export class Level1 extends BaseLevel {
 
         this.gameObjects.set(ground.id, ground);
 
-        //#endregion --------------------------------------------------------
-
-        //#region  Create the ball -------------------------------------------
-        const ball = createBall(scene);
-        this.gameObjects.set(ball.id, ball);
         //#endregion --------------------------------------------------------
 
         //#region  Create the goal -------------------------------------------
@@ -142,5 +138,16 @@ export class Level1 extends BaseLevel {
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(-25, 0, 75);
         scene.add(light);
+    }
+
+    protected onActivate(): void {
+        //#region  Create the ball -------------------------------------------
+        const ball = createBall(scene);
+        this.gameObjects.set(ball.id, ball);
+        //#endregion --------------------------------------------------------
+    }
+
+    protected onDeactivate(): void {
+        destroyGameObject(getObjectByID("ball")!);
     }
 }

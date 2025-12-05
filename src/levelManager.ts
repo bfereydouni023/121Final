@@ -1,6 +1,7 @@
-import { TransformComponent } from "./components";
+import { FollowComponent, TransformComponent } from "./components";
 import { cameraMapViewTransform, mainCamera } from "./globals";
 import { Level1 } from "./levels/level1";
+import { Level2 } from "./levels/level2";
 import { getSingletonComponent } from "./objectSystem";
 import { SerializationSystem } from "./serialization";
 import { TweenManager } from "./tweenManager";
@@ -13,6 +14,7 @@ export class LevelManager implements SingletonComponent {
 
     create(): void {
         this.registerLevel(new Level1());
+        this.registerLevel(new Level2());
     }
 
     private registerLevel(level: Level): void {
@@ -34,6 +36,8 @@ export class LevelManager implements SingletonComponent {
         this.activeLevel = newLevel;
         const serializationSystem = getSingletonComponent(SerializationSystem);
         serializationSystem.saveLevel(levelID);
+
+        //camera is currently broken
     }
 
     resetCurrentLevel(): void {
@@ -43,6 +47,8 @@ export class LevelManager implements SingletonComponent {
     }
 
     private doMapZoomOutIn(): void {
+        mainCamera.gameObject.getComponent(FollowComponent)!.target = null;
+
         const cameraTransform =
             mainCamera.gameObject.getComponent(TransformComponent)!;
         const tm = getSingletonComponent(TweenManager);

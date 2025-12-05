@@ -18,7 +18,12 @@ import { mainCamera } from "../globals";
  * NOTE: This function now requires the active camera. Pointer interactions are wired through the
  * global Input event bus so individual objects no longer need direct DOM access.
  */
-export function createBall(scene: THREE.Scene) {
+export function createBall(
+    scene: THREE.Scene,
+    x?: number,
+    y?: number,
+    z?: number,
+) {
     // validate camera early to give a clear error
     if (!mainCamera) {
         throw new Error(
@@ -30,7 +35,7 @@ export function createBall(scene: THREE.Scene) {
 
     // Transform
     const t = ball.addComponent(TransformComponent);
-    t.position = { x: 0, y: 10, z: 0 };
+    t.position = { x: x ?? 0, y: y ?? 10, z: z ?? 0 };
 
     // Visual mesh
     const meshComp = ball.addComponent(MeshComponent);

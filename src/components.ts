@@ -405,3 +405,26 @@ export class ScriptComponent extends BaseComponent {
         this.onDispose?.();
     }
 }
+
+/**
+ * Utility: allow safely updating a FollowComponent's rotationOffset at runtime.
+ * This is a minimal, non-invasive helper so callers can replace/modify the stored
+ * quaternion without depending on internal implementation details.
+ */
+export function setFollowRotationOffset(
+    follow: FollowComponent | null | undefined,
+    q: { x: number; y: number; z: number; w: number },
+): void {
+    if (!follow) return;
+
+    // ensure there's an object we can assign to (some code paths may expect an Euler-like object)
+    follow.rotationOffset = { x: q.x, y: q.y, z: q.z, w: q.w };
+
+    // If the component/system exposes a hook to mark the component dirty / notify systems,
+    // call it. This call is guarded so it's safe if not present.
+    try {
+        (follow as unknown as { markDirty?: () => void }).markDirty?.();
+    } catch {
+        // ignore if the component doesn't provide such a method
+    }
+}

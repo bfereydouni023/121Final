@@ -92,7 +92,19 @@ class GameObjectImpl implements GameObject {
     }
 
     dispose() {
+        // Ensure components are removed from global update lists before disposing them
+        try {
+            removeComponentsFromLists(this.components);
+        } catch (err) {
+            // defensive: continue even if list removal fails
+            console.warn(
+                "removeComponentsFromLists failed during dispose:",
+                err,
+            );
+        }
+
         for (const component of this.components) {
+            // allow each component to clean up its own resources (meshes, rigidbodies, etc.)
             component.dispose?.();
         }
         this.components = [];
