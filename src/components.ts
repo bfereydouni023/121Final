@@ -386,6 +386,8 @@ export class ScriptComponent extends BaseComponent {
      */
     public onClicked?(event: MouseEvent | MouseInputEvent): void;
     public onDispose?(): void;
+    public onCollisionEnter?(other: GameObject): void;
+    public onCollisionExit?(other: GameObject): void;
     private hasStarted: boolean = false;
 
     create(): void {
