@@ -14,7 +14,7 @@ export class LevelManager implements SingletonComponent {
         this.swapToLevel(typeof Level1);
     }
 
-    registerLevel(level: Level): void {
+    private registerLevel(level: Level): void {
         this.levels.set(level.id, level);
     }
 

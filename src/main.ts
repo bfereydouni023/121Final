@@ -8,6 +8,8 @@ import {
     setRenderer,
     setWorld,
     world,
+    scene,
+    setScene,
 } from "./globals";
 import {
     createGameObject,
@@ -25,6 +27,7 @@ import {
     getGameObjectFromCollider,
 } from "./components";
 import { TweenManager } from "./tweenManager";
+import { LevelManager } from "./levelManager";
 
 // TUNABLE PARAMETERS]
 
@@ -34,6 +37,7 @@ await RAPIER.init();
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
 const physicsClock = new THREE.Clock();
+physicsClock.autoStart = false;
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
@@ -110,7 +114,7 @@ function updateFPSCounter(delta: number): void {
 }
 
 const renderClock = new THREE.Clock();
-const scene = new THREE.Scene();
+setScene(new THREE.Scene());
 
 // FPS counter variables
 let fpsElement: HTMLDivElement;
@@ -146,6 +150,7 @@ createFPSCounter();
 
 const input = getSingletonComponent(Input);
 const tweenManager = getSingletonComponent(TweenManager);
+const levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
 // Todo: move camera setup to a helper function
@@ -224,12 +229,11 @@ function renderUpdate(delta: number) {
     renderer.render(scene, mainCamera);
 }
 
-function physicsUpdate() {
+function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
 
-    const _delta = physicsClock.getDelta();
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
-        components[i].physicsUpdate!(_delta);
+        components[i].physicsUpdate!(delta);
     }
 }
