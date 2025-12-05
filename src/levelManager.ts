@@ -36,6 +36,12 @@ export class LevelManager implements SingletonComponent {
         serializationSystem.saveLevel(levelID);
     }
 
+    resetCurrentLevel(): void {
+        if (this.activeLevel) {
+            this.activeLevel.reset();
+        }
+    }
+
     private doMapZoomOutIn(): void {
         const cameraTransform =
             mainCamera.gameObject.getComponent(TransformComponent)!;
