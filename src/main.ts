@@ -10,6 +10,7 @@ import {
     world,
     scene,
     setScene,
+    cameraMapViewTransform,
 } from "./globals";
 import {
     createGameObject,
@@ -179,7 +180,7 @@ renderer.setAnimationLoop(gameLoop);
 
 function setupCamera(): MainCamera {
     const cameraObject = createGameObject("Main Camera");
-    cameraObject.addComponent(TransformComponent);
+    const transform = cameraObject.addComponent(TransformComponent);
     cameraObject.addComponent(FollowComponent);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
     cameraComponent.camera = new THREE.PerspectiveCamera(
@@ -188,6 +189,8 @@ function setupCamera(): MainCamera {
         0.1,
         1000,
     );
+    transform.position = cameraMapViewTransform.position;
+    transform.rotation = cameraMapViewTransform.rotation;
     cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
     const mainCam = cameraComponent.camera as MainCamera;
     mainCam.gameObject = cameraObject;

@@ -1,5 +1,5 @@
 import { TransformComponent } from "./components";
-import { mainCamera } from "./globals";
+import { cameraMapViewTransform, mainCamera } from "./globals";
 import { Level1 } from "./levels/level1";
 import { getSingletonComponent } from "./objectSystem";
 import { TweenManager } from "./tweenManager";
@@ -21,6 +21,9 @@ export class LevelManager implements SingletonComponent {
     swapToLevel(levelID: string): void {
         if (this.activeLevel) {
             this.activeLevel.active = false;
+            this.doMapZoomOutIn();
+        } else {
+            setTimeout(() => setupCameraTracking(), 1000);
         }
         const newLevel = this.levels.get(levelID);
         if (!newLevel) {
@@ -28,15 +31,18 @@ export class LevelManager implements SingletonComponent {
         }
         newLevel.active = true;
         this.activeLevel = newLevel;
+    }
+
+    private doMapZoomOutIn(): void {
         const cameraTransform =
             mainCamera.gameObject.getComponent(TransformComponent)!;
         const tm = getSingletonComponent(TweenManager);
         tm.createTween(cameraTransform.position)
-            .to({ x: 0, y: 150, z: 10 }, 2000)
+            .to(cameraMapViewTransform.position, 2000)
             .onComplete(() => setupCameraTracking())
             .start();
         tm.createTween(cameraTransform.rotation)
-            .to({ x: -Math.PI / 2, y: 0, z: 0, w: 0 }, 2000)
+            .to(cameraMapViewTransform.rotation, 2000)
             .start();
     }
 }
