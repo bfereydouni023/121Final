@@ -1,5 +1,6 @@
 import * as Globals from "./globals.ts";
 import {
+    ActiveEvents,
     ColliderDesc,
     RigidBodyDesc,
     RigidBodyType,
@@ -386,6 +387,8 @@ export class ScriptComponent extends BaseComponent {
      */
     public onClicked?(event: MouseEvent | MouseInputEvent): void;
     public onDispose?(): void;
+    public onCollisionEnter?(other: GameObject): void;
+    public onCollisionExit?(other: GameObject): void;
     private hasStarted: boolean = false;
 
     create(): void {
@@ -403,5 +406,27 @@ export class ScriptComponent extends BaseComponent {
     }
     dispose(): void {
         this.onDispose?.();
+    }
+}
+
+export class PickupComponent extends ScriptComponent {
+    dependencies = [TransformComponent, RigidbodyComponent];
+    private pickedUp: boolean = false;
+    public get isPickedUp(): boolean {
+        return this.pickedUp;
+    }
+    public triggers: Set<GameObject> = new Set<GameObject>();
+    public onPickup?(other: GameObject): void;
+
+    create(): void {
+        const rb = this.gameObject.getComponent(RigidbodyComponent)!;
+        rb.collider.setActiveEvents(ActiveEvents.COLLISION_EVENTS);
+    }
+
+    onCollisionEnter(other: GameObject): void {
+        if (this.pickedUp) return;
+        if (!this.triggers.has(other)) return;
+        this.pickedUp = true;
+        this.onPickup?.(other);
     }
 }
