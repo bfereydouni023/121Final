@@ -18,7 +18,7 @@ export class Level1 implements Level {
     private isActive: boolean;
     private gameObjects: Map<string, GameObject> = new Map();
     constructor() {
-        this.id = typeof Level1;
+        this.id = Level1.name;
         this.isActive = false;
         this.createObjects();
     }

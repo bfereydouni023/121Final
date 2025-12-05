@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import "./style.css";
+import "./console.ts";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import {
     renderer,
@@ -175,7 +176,7 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
-levelManager.swapToLevel(typeof Level1);
+levelManager.swapToLevel(Level1.name);
 renderer.setAnimationLoop(gameLoop);
 
 function setupCamera(): MainCamera {
