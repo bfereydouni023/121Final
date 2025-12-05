@@ -315,6 +315,22 @@ function renderUpdate(delta: number) {
 
 function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
+    physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
+        const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
+        const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
+        if (!obj1 || !obj2) return;
+
+        const script1 = obj1.getComponent(ScriptComponent);
+        if (script1) {
+            if (started) script1?.onCollisionEnter?.(obj2);
+            else script1?.onCollisionExit?.(obj2);
+        }
+        const script2 = obj2.getComponent(ScriptComponent);
+        if (script2) {
+            if (started) script2?.onCollisionEnter?.(obj1);
+            else script2?.onCollisionExit?.(obj1);
+        }
+    });
 
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
