@@ -2,6 +2,7 @@ import { TransformComponent } from "./components";
 import { cameraMapViewTransform, mainCamera } from "./globals";
 import { Level1 } from "./levels/level1";
 import { getSingletonComponent } from "./objectSystem";
+import { SerializationSystem } from "./serialization";
 import { TweenManager } from "./tweenManager";
 import type { Level, SingletonComponent } from "./types";
 import { setupCameraTracking } from "./utilities";
@@ -15,7 +16,7 @@ export class LevelManager implements SingletonComponent {
     }
 
     private registerLevel(level: Level): void {
-        this.levels.set(level.id, level);
+        this.levels.set(level.id.toLowerCase(), level);
     }
 
     swapToLevel(levelID: string): void {
@@ -25,12 +26,14 @@ export class LevelManager implements SingletonComponent {
         } else {
             setTimeout(() => setupCameraTracking(), 1000);
         }
-        const newLevel = this.levels.get(levelID);
+        const newLevel = this.levels.get(levelID.toLowerCase());
         if (!newLevel) {
             throw new Error(`Level with ID ${levelID} not found.`);
         }
         newLevel.active = true;
         this.activeLevel = newLevel;
+        const serializationSystem = getSingletonComponent(SerializationSystem);
+        serializationSystem.saveLevel(levelID);
     }
 
     private doMapZoomOutIn(): void {
