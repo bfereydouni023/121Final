@@ -8,6 +8,8 @@ import {
     setRenderer,
     setWorld,
     world,
+    scene,
+    setScene,
 } from "./globals";
 import {
     createGameObject,
@@ -16,7 +18,6 @@ import {
     getObjectByID,
     getSingletonComponent,
 } from "./objectSystem";
-import { createLevel } from "./levels/level1";
 import { Input } from "./input";
 import {
     CameraComponent,
@@ -25,6 +26,8 @@ import {
     TransformComponent,
     getGameObjectFromCollider,
 } from "./components";
+import { TweenManager } from "./tweenManager";
+import { LevelManager } from "./levelManager";
 
 // TUNABLE PARAMETERS]
 
@@ -34,6 +37,7 @@ await RAPIER.init();
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
 const physicsClock = new THREE.Clock();
+physicsClock.autoStart = false;
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
@@ -110,7 +114,7 @@ function updateFPSCounter(delta: number): void {
 }
 
 const renderClock = new THREE.Clock();
-const scene = new THREE.Scene();
+setScene(new THREE.Scene());
 
 // FPS counter variables
 let fpsElement: HTMLDivElement;
@@ -145,10 +149,9 @@ document.body.appendChild(renderer.domElement);
 createFPSCounter();
 
 const input = getSingletonComponent(Input);
+const tweenManager = getSingletonComponent(TweenManager);
+const _levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
-
-// create the level
-const _created = createLevel(scene, mainCamera);
 
 // Todo: move camera setup to a helper function
 setupCameraTracking();
@@ -177,7 +180,7 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
-renderer.setAnimationLoop(renderUpdate);
+renderer.setAnimationLoop(gameLoop);
 
 function setupCameraTracking() {
     const cameraObject = createGameObject("Main Camera");
@@ -194,12 +197,13 @@ function setupCameraTracking() {
     }
     followComponent.positionOffset = { x: 0, y: 15, z: 10 };
     followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
+    followComponent.updateMode = "physics";
     followComponent.rotationMode = "fixed";
     followComponent.positionMode = "follow";
     followComponent.positionSmoothFactor = 0.1;
 }
 
-function renderUpdate() {
+function gameLoop() {
     const delta = renderClock.getDelta();
 
     // Update FPS counter
@@ -212,13 +216,12 @@ function renderUpdate() {
         physicsAccumulator -= world.timestep;
     }
 
-    // Update physics with fixed timestep
-    physicsAccumulator += delta;
-    while (physicsAccumulator >= world.timestep) {
-        physicsUpdate();
-        physicsAccumulator -= world.timestep;
-    }
+    tweenManager.updateTweens(delta);
 
+    renderUpdate(delta);
+}
+
+function renderUpdate(delta: number) {
     const components = getActiveRenderComponents();
     for (let i = 0; i < components.length; i++) {
         components[i].renderUpdate!(delta);
@@ -227,12 +230,11 @@ function renderUpdate() {
     renderer.render(scene, mainCamera);
 }
 
-function physicsUpdate() {
+function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
 
-    const _delta = physicsClock.getDelta();
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
-        components[i].physicsUpdate!(_delta);
+        components[i].physicsUpdate!(delta);
     }
 }
