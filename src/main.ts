@@ -150,7 +150,7 @@ createFPSCounter();
 
 const input = getSingletonComponent(Input);
 const tweenManager = getSingletonComponent(TweenManager);
-const levelManager = getSingletonComponent(LevelManager);
+const _levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
 // Todo: move camera setup to a helper function
@@ -197,6 +197,7 @@ function setupCameraTracking() {
     }
     followComponent.positionOffset = { x: 0, y: 15, z: 10 };
     followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
+    followComponent.updateMode = "physics";
     followComponent.rotationMode = "fixed";
     followComponent.positionMode = "follow";
     followComponent.positionSmoothFactor = 0.1;

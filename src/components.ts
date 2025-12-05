@@ -248,6 +248,7 @@ export class CameraComponent extends BaseComponent {
 
 export class FollowComponent extends BaseComponent {
     dependencies = [TransformComponent];
+    public updateMode: "render" | "physics" = "render";
     public target: TransformComponent | null = null;
     public positionOffset: Vector3 = { x: 0, y: 5, z: -10 };
     public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 0 };
@@ -261,6 +262,18 @@ export class FollowComponent extends BaseComponent {
     }
 
     renderUpdate(_deltaTime: number): void {
+        if (this.updateMode === "render") {
+            this.update();
+        }
+    }
+
+    physicsUpdate(_deltaTime: number): void {
+        if (this.updateMode === "physics") {
+            this.update();
+        }
+    }
+
+    update() {
         if (!this.target) return;
         const transform = this.gameObject.getComponent(TransformComponent)!;
         if (this.positionMode === "follow") {
