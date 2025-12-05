@@ -39,8 +39,10 @@ await RAPIER.init();
 
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
+const maxPhysicsStepsPerFrame = 3;
 const physicsClock = new THREE.Clock();
 physicsClock.autoStart = false;
+physicsClock.start();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
@@ -159,6 +161,14 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+window.onfocus = () => {
+    physicsClock.start();
+};
+
+window.onblur = () => {
+    physicsClock.stop();
+};
+
 // Raycast click detection leverages the Input singleton + Rapier queries
 input.addEventListener("mouseDown", (mouseEvent) => {
     const hit = input.raycastPhysics(
@@ -205,10 +215,15 @@ function gameLoop() {
     updateFPSCounter(delta);
 
     // Update physics with fixed timestep
-    physicsAccumulator += delta;
-    while (physicsAccumulator >= world.timestep) {
+    physicsAccumulator += physicsClock.getDelta();
+    let steps = 0;
+    while (
+        physicsAccumulator >= world.timestep &&
+        steps < maxPhysicsStepsPerFrame
+    ) {
         physicsUpdate();
         physicsAccumulator -= world.timestep;
+        steps++;
     }
 
     tweenManager.updateTweens(delta);
