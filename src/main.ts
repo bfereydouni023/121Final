@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import "./style.css";
+import "./console.ts";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import {
     renderer,
@@ -10,12 +11,12 @@ import {
     world,
     scene,
     setScene,
+    cameraMapViewTransform,
 } from "./globals";
 import {
     createGameObject,
     getActivePhysicsComponents,
     getActiveRenderComponents,
-    getObjectByID,
     getSingletonComponent,
 } from "./objectSystem";
 import { Input } from "./input";
@@ -28,6 +29,8 @@ import {
 } from "./components";
 import { TweenManager } from "./tweenManager";
 import { LevelManager } from "./levelManager";
+import type { MainCamera } from "./types";
+import { Level1 } from "./levels/level1";
 
 // TUNABLE PARAMETERS]
 
@@ -36,8 +39,10 @@ await RAPIER.init();
 
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
+const maxPhysicsStepsPerFrame = 3;
 const physicsClock = new THREE.Clock();
 physicsClock.autoStart = false;
+physicsClock.start();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
@@ -130,14 +135,7 @@ scene.background = new THREE.Color(0x87ceeb);
 // add some ambient lighting so dark/shadowed areas are visible
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
-setMainCamera(
-    new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000,
-    ),
-);
+setMainCamera(setupCamera());
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
@@ -150,11 +148,11 @@ createFPSCounter();
 
 const input = getSingletonComponent(Input);
 const tweenManager = getSingletonComponent(TweenManager);
-const _levelManager = getSingletonComponent(LevelManager);
+const levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
 // Todo: move camera setup to a helper function
-setupCameraTracking();
+setupCamera();
 
 // update on window resize
 window.addEventListener("resize", () => {
@@ -162,6 +160,14 @@ window.addEventListener("resize", () => {
     mainCamera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+window.onfocus = () => {
+    physicsClock.start();
+};
+
+window.onblur = () => {
+    physicsClock.stop();
+};
 
 // Raycast click detection leverages the Input singleton + Rapier queries
 input.addEventListener("mouseDown", (mouseEvent) => {
@@ -180,27 +186,26 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
+levelManager.swapToLevel(Level1.name);
 renderer.setAnimationLoop(gameLoop);
 
-function setupCameraTracking() {
+function setupCamera(): MainCamera {
     const cameraObject = createGameObject("Main Camera");
-    cameraObject.addComponent(TransformComponent);
-    const followComponent = cameraObject.addComponent(FollowComponent);
+    const transform = cameraObject.addComponent(TransformComponent);
+    cameraObject.addComponent(FollowComponent);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
-    cameraComponent.camera = mainCamera;
+    cameraComponent.camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000,
+    );
+    transform.position = cameraMapViewTransform.position;
+    transform.rotation = cameraMapViewTransform.rotation;
     cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
-    const ball = getObjectByID("ball");
-    if (ball == null) {
-        console.warn("Could not find ball for camera follow");
-    } else {
-        followComponent.target = ball.getComponent(TransformComponent)!;
-    }
-    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
-    followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
-    followComponent.updateMode = "physics";
-    followComponent.rotationMode = "fixed";
-    followComponent.positionMode = "follow";
-    followComponent.positionSmoothFactor = 0.1;
+    const mainCam = cameraComponent.camera as MainCamera;
+    mainCam.gameObject = cameraObject;
+    return mainCam;
 }
 
 function gameLoop() {
@@ -210,10 +215,15 @@ function gameLoop() {
     updateFPSCounter(delta);
 
     // Update physics with fixed timestep
-    physicsAccumulator += delta;
-    while (physicsAccumulator >= world.timestep) {
+    physicsAccumulator += physicsClock.getDelta();
+    let steps = 0;
+    while (
+        physicsAccumulator >= world.timestep &&
+        steps < maxPhysicsStepsPerFrame
+    ) {
         physicsUpdate();
         physicsAccumulator -= world.timestep;
+        steps++;
     }
 
     tweenManager.updateTweens(delta);

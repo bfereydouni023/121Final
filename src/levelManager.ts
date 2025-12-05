@@ -1,9 +1,11 @@
-import { Tween } from "@tweenjs/tween.js";
-import { mainCamera } from "./globals";
+import { TransformComponent } from "./components";
+import { cameraMapViewTransform, mainCamera } from "./globals";
 import { Level1 } from "./levels/level1";
 import { getSingletonComponent } from "./objectSystem";
+import { SerializationSystem } from "./serialization";
 import { TweenManager } from "./tweenManager";
 import type { Level, SingletonComponent } from "./types";
+import { setupCameraTracking } from "./utilities";
 
 export class LevelManager implements SingletonComponent {
     private levels: Map<string, Level> = new Map();
@@ -11,22 +13,45 @@ export class LevelManager implements SingletonComponent {
 
     create(): void {
         this.registerLevel(new Level1());
-        this.swapToLevel(typeof Level1);
     }
 
     private registerLevel(level: Level): void {
-        this.levels.set(level.id, level);
+        this.levels.set(level.id.toLowerCase(), level);
     }
 
     swapToLevel(levelID: string): void {
         if (this.activeLevel) {
             this.activeLevel.active = false;
+            this.doMapZoomOutIn();
+        } else {
+            setTimeout(() => setupCameraTracking(), 1000);
         }
-        const newLevel = this.levels.get(levelID);
+        const newLevel = this.levels.get(levelID.toLowerCase());
         if (!newLevel) {
             throw new Error(`Level with ID ${levelID} not found.`);
         }
         newLevel.active = true;
         this.activeLevel = newLevel;
+        const serializationSystem = getSingletonComponent(SerializationSystem);
+        serializationSystem.saveLevel(levelID);
+    }
+
+    resetCurrentLevel(): void {
+        if (this.activeLevel) {
+            this.activeLevel.reset();
+        }
+    }
+
+    private doMapZoomOutIn(): void {
+        const cameraTransform =
+            mainCamera.gameObject.getComponent(TransformComponent)!;
+        const tm = getSingletonComponent(TweenManager);
+        tm.createTween(cameraTransform.position)
+            .to(cameraMapViewTransform.position, 2000)
+            .onComplete(() => setupCameraTracking())
+            .start();
+        tm.createTween(cameraTransform.rotation)
+            .to(cameraMapViewTransform.rotation, 2000)
+            .start();
     }
 }
