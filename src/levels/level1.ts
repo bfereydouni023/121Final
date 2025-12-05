@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
-import { createGameObject, destroyGameObject } from "../objectSystem";
 import {
     TransformComponent,
     MeshComponent,
@@ -9,42 +8,18 @@ import {
 import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
-import type { GameObject, Level } from "../types";
 import { scene } from "../globals";
-import { IsResettable, ResetGameObjects } from "../utilities";
+import { BaseLevel } from "./baselevel";
+import { createGameObject } from "../objectSystem";
 
-export class Level1 implements Level {
-    id: string;
-    private isActive: boolean;
-    private gameObjects: Map<string, GameObject> = new Map();
+export class Level1 extends BaseLevel {
     constructor() {
+        super();
         this.id = Level1.name;
-        this.isActive = false;
         this.createObjects();
     }
 
-    get active(): boolean {
-        return this.isActive;
-    }
-
-    set active(value: boolean) {
-        this.isActive = value;
-    }
-
-    destroy(): void {
-        destroyGameObject(...this.gameObjects.values());
-        this.gameObjects.clear();
-    }
-
-    reset(): void {
-        ResetGameObjects(
-            ...Array.from(this.gameObjects.values()).filter((go) =>
-                IsResettable(go),
-            ),
-        );
-    }
-
-    private createObjects(): void {
+    protected createObjects(): void {
         //#region  Create the ground -------------------------------------------
         const ground = createGameObject();
         const gT = ground.addComponent(TransformComponent);
