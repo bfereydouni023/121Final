@@ -289,14 +289,13 @@ function gameLoop() {
 
     // Update physics with fixed timestep
     physicsAccumulator += physicsClock.getDelta();
-    let steps = 0;
-    while (
-        physicsAccumulator >= world.timestep &&
-        steps < maxPhysicsStepsPerFrame
-    ) {
+    // Cap the accumulator to avoid spiral of death after tab switch
+    if (physicsAccumulator > maxPhysicsStepsPerFrame * world.timestep) {
+        physicsAccumulator = maxPhysicsStepsPerFrame * world.timestep;
+    }
+    while (physicsAccumulator >= world.timestep) {
         physicsUpdate();
         physicsAccumulator -= world.timestep;
-        steps++;
     }
 
     tweenManager.updateTweens(delta);
@@ -315,22 +314,22 @@ function renderUpdate(delta: number) {
 
 function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
-    physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
-        const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
-        const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
-        if (!obj1 || !obj2) return;
+    // physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
+    //     const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
+    //     const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
+    //     if (!obj1 || !obj2) return;
 
-        const script1 = obj1.getComponent(ScriptComponent);
-        if (script1) {
-            if (started) script1?.onCollisionEnter?.(obj2);
-            else script1?.onCollisionExit?.(obj2);
-        }
-        const script2 = obj2.getComponent(ScriptComponent);
-        if (script2) {
-            if (started) script2?.onCollisionEnter?.(obj1);
-            else script2?.onCollisionExit?.(obj1);
-        }
-    });
+    //     const script1 = obj1.getComponent(ScriptComponent);
+    //     if (script1) {
+    //         if (started) script1?.onCollisionEnter?.(obj2);
+    //         else script1?.onCollisionExit?.(obj2);
+    //     }
+    //     const script2 = obj2.getComponent(ScriptComponent);
+    //     if (script2) {
+    //         if (started) script2?.onCollisionEnter?.(obj1);
+    //         else script2?.onCollisionExit?.(obj1);
+    //     }
+    // });
 
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
