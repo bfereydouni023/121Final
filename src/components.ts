@@ -200,6 +200,15 @@ export class MeshComponent extends BaseComponent {
             transform.scale.z,
         );
     }
+
+    dispose(): void {
+        this.mesh.geometry.dispose();
+        if (Array.isArray(this.mesh.material)) {
+            this.mesh.material.forEach((mat) => mat.dispose());
+        } else {
+            this.mesh.material.dispose();
+        }
+    }
 }
 
 export class LightComponent extends BaseComponent {
