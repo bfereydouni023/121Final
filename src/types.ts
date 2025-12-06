@@ -26,7 +26,8 @@ export interface Level extends Resettable {
 }
 
 export interface GameObject {
-    id: string;
+    name: string;
+    id: number;
     set active(value: boolean);
     get active(): boolean;
     addComponent<T extends Component>(

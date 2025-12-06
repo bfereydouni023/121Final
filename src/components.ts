@@ -469,7 +469,7 @@ export class PickupComponent extends ScriptComponent {
             rb.collider.setActiveEvents(ActiveEvents.COLLISION_EVENTS);
         } else {
             console.warn(
-                `PickupComponent: Trigger object ${gameObject.id} does not have a RigidbodyComponent with a collider.`,
+                `PickupComponent: Trigger object ${gameObject.name} does not have a RigidbodyComponent with a collider.`,
             );
         }
     }

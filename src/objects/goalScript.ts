@@ -178,12 +178,15 @@ export function createOverlay(
             // dispatch a generic event so UI / main can listen and transition to a victory screen
             window.dispatchEvent(
                 new CustomEvent("game:victory", {
-                    detail: { goalId: overlay.id },
+                    detail: { goalId: overlay.name },
                 }),
             );
             // optional: visual feedback
             (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-            console.log("[Overlay] victory triggered for overlay", overlay.id);
+            console.log(
+                "[Overlay] victory triggered for overlay",
+                overlay.name,
+            );
         }
     };
 

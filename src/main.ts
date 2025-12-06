@@ -225,7 +225,7 @@ input.addEventListener("mouseDown", (mouseEvent) => {
         mainCamera,
         {
             predicate: (collider) =>
-                getGameObjectFromCollider(collider)?.id === "ball",
+                getGameObjectFromCollider(collider)?.name === "ball",
         },
     );
     const go = hit?.gameObject;

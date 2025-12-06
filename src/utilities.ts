@@ -4,7 +4,7 @@ import {
     setFollowRotationOffset,
 } from "./components";
 import { mainCamera } from "./globals";
-import { getObjectByID } from "./objectSystem";
+import { getObjectByName } from "./objectSystem";
 import type { Resettable } from "./types";
 import * as THREE from "three";
 
@@ -24,7 +24,7 @@ export function setupCameraTracking() {
         console.warn("Main Camera does not have a FollowComponent");
         return;
     }
-    const ball = getObjectByID("ball");
+    const ball = getObjectByName("ball");
     if (ball == null) {
         console.warn("Could not find ball for camera follow");
     } else {

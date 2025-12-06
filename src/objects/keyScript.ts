@@ -11,7 +11,7 @@ import { scene } from "../globals";
 import {
     createGameObject,
     destroyGameObject,
-    getObjectByID,
+    getObjectByName,
     getObjectWithComponent,
     getSingletonComponent,
 } from "../objectSystem";
@@ -60,7 +60,7 @@ export function createKey(
     dbg.onCollisionEnter = (other) => {
         console.debug(
             "[Key DEBUG] onCollisionEnter: other=",
-            other?.id ?? other,
+            other?.name ?? other,
         );
     };
 
@@ -115,12 +115,12 @@ export function createKey(
 
     // Try to find the player gameobject to add as a trigger so pickup fires on player collision
     const playerGO =
-        getObjectByID(playerId) ??
+        getObjectByName(playerId) ??
         getObjectWithComponent(RigidbodyComponent) ??
         null;
     if (playerGO) pickup.addTriggerObject(playerGO);
     console.log(
-        `[Key] pickup trigger set for player: ${playerGO?.id ?? "null"}`,
+        `[Key] pickup trigger set for player: ${playerGO?.name ?? "null"}`,
     );
 
     // onPickup: add to inventory and destroy the key gameobject
@@ -129,7 +129,7 @@ export function createKey(
             const inv = getSingletonComponent(Inventory);
             inv.addItem(keyId, 1);
             console.debug(
-                `[Key] picked up ${keyId} by ${other?.id ?? "unknown"}`,
+                `[Key] picked up ${keyId} by ${other?.name ?? "unknown"}`,
             );
         } catch (err) {
             console.warn("[Key] failed to add to inventory:", err);

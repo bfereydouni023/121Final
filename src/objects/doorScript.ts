@@ -7,7 +7,7 @@ import {
     ScriptComponent,
 } from "../components";
 import { scene } from "../globals";
-import { createGameObject, getObjectByID } from "../objectSystem";
+import { createGameObject, getObjectByName } from "../objectSystem";
 import { getSingletonComponent } from "../objectSystem";
 import { Inventory } from "../inventory";
 
@@ -85,7 +85,7 @@ export function createDoor(
         if (opened) return;
         // detect player by common userData.type === 'player' or id 'player'
         // simpler check: look at mesh/userData via traversing components (best-effort)
-        const playerGO = getObjectByID("player");
+        const playerGO = getObjectByName("player");
         // use safe, typed checks instead of `any` casts
         const otherObj = other as unknown as {
             id?: unknown;
