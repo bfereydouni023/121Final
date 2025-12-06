@@ -114,7 +114,11 @@ export class Level2 extends BaseLevel {
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const door = createDoor(doorPosition, new THREE.Vector3(4, 5, 1), "gold_key");
+        const door = createDoor(
+            doorPosition,
+            new THREE.Vector3(4, 5, 1),
+            "gold_key",
+        );
         this.gameObjects.set(door.id, door);
 
         //#endregion --------------------------------------------------------
