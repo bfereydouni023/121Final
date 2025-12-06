@@ -49,3 +49,16 @@ Our game is a mini-golf inspired puzzle game. This utilizes Rapier's physics sim
 Our team's plan has indeed changed since team formation. For one, we decided to cut a few features that we initially wanted in the game. Initially, the control scheme was going to be much more nuanced, but we ended up giving it up for a simpler one in the interest of time.
 
 Another consideration is that we initially stuck to our respective roles, but as things started getting set up, we started working in each others roles more often as a team since each member was beginning to get a lot more involved in the overall design process.
+
+## Dev Log 2
+
+## How we satisfied the software requirements
+For our F2 requirements, we continued to iterate on our golf-bowling game with the same engines and frameworks we had in F1. To create the scene moving system, we developed a system that would dynamically delete the player character and recreate it in the level of the next scene, letting the camera find the new player character and reposition itself to the new level. 
+The player can interact with specific objects like keys or buttons. With keys, the player can collect them by rolling into them, which adds the key to the player inventory. With buttons, the player must swing into the buttons with enough force to actuate them. 
+To make the inventory system relevant to the player’s progress, we made it so that difficult levels would require a key that first would be fetched in a different location, and then brought to the door that was in the way of completing the level. 
+Most of our puzzles are physics-based as in addition to solving the sequence of collecting keys, the player must figure out which buttons to press to clear the path to victory, all of which are done with the physics simulation of the ball. 
+Finally, if the player can reason well enough, they can reach the end and win the game, which will tell them how many strokes it took them to win the game.  
+
+
+## Reflection
+For our F2 development, our team has decided to cut / postpone more features. Originally, we wanted to change the input of the ball from the primitive slingshot system to the more nuanced bowling system, but we decided that investing our time in fulfilling the requirements was a better usage of time. Additionally, we had planned on tile placements, but we discovered that this was significantly over-scoped, and that our existing golf-bowling game could have simpler and more elegant puzzles. However, unlike with F1, we have also added features, such as the button block, which is now a key part to the puzzle aspect of our game. Additionally, thanks to our playtesting session, we have learned that players would enjoy the ability to rotate the camera, so we are currently implementing the scaffolding for camera rotation. We also learned that the height of the walls in our game was just low enough to make it look like they were meant to be jumped over, so to communicate our intent better, we made the walls taller and reduced the likelihood of miscommunication with our design language. 

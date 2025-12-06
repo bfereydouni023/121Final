@@ -8,7 +8,7 @@ import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { destroyGameObject, getObjectByID } from "../objectSystem";
+import { destroyGameObject, getObjectByName } from "../objectSystem";
 import { createGround } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
@@ -80,7 +80,7 @@ export class Level2 extends BaseLevel {
                 console.warn("level2 optional block error:", err);
             }
 
-            this.gameObjects.set(go.id, go);
+            this.gameObjects.set(go.name, go);
         }
 
         //#endregion --------------------------------------------------------
@@ -94,7 +94,7 @@ export class Level2 extends BaseLevel {
         ); // near far end of ground
         const goalSize = new THREE.Vector3(4, 4, 4);
         const goal = createGoal(scene, goalPosition, goalSize);
-        this.gameObjects.set(goal.id, goal);
+        this.gameObjects.set(goal.name, goal);
         //#endregion
 
         //#region  Create simple level --------------------------------------
@@ -106,7 +106,7 @@ export class Level2 extends BaseLevel {
             baseOffset.z - tileSize * 1 + 6,
         );
         const key = createKey(keyPosition, "gold_key", tileSize);
-        this.gameObjects.set(key.id, key);
+        this.gameObjects.set(key.name, key);
 
         //Create a Door
         const doorPosition = new THREE.Vector3(
@@ -119,7 +119,7 @@ export class Level2 extends BaseLevel {
             new THREE.Vector3(4, 5, 1),
             "gold_key",
         );
-        this.gameObjects.set(door.id, door);
+        this.gameObjects.set(door.name, door);
 
         //#endregion --------------------------------------------------------
 
@@ -133,11 +133,11 @@ export class Level2 extends BaseLevel {
         //#region  Create the ball ------------------------------------------
         //Ball position manually set due to protection
         const ball = createBall(scene, 500, 0, -15);
-        this.gameObjects.set(ball.id, ball);
+        this.gameObjects.set(ball.name, ball);
         //#endregion --------------------------------------------------------
     }
 
     protected onDeactivate(): void {
-        destroyGameObject(getObjectByID("ball")!);
+        destroyGameObject(getObjectByName("ball")!);
     }
 }

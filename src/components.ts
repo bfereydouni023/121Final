@@ -104,8 +104,6 @@ export class TransformComponent extends BaseComponent {
 export class RigidbodyComponent extends BaseComponent {
     static readonly DEFAULT_GROUP = Globals.mouseInteractionGroup | 0x1;
     dependencies = [TransformComponent];
-    mass: number = 1;
-    velocity: Vector3 = { x: 0, y: 0, z: 0 };
     public rigidbody: RigidBody;
     private _collider: Collider;
     get collider(): Collider {
@@ -121,6 +119,36 @@ export class RigidbodyComponent extends BaseComponent {
             this.rigidbody,
         );
         registerColliderOwner(this._collider, this.gameObject);
+    }
+
+    create(): void {
+        // Initialize rigidbody position from TransformComponent
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        this.rigidbody.setTranslation(
+            {
+                x: transform.position.x,
+                y: transform.position.y,
+                z: transform.position.z,
+            },
+            false,
+        );
+        this.rigidbody.setRotation(
+            {
+                x: transform.rotation.x,
+                y: transform.rotation.y,
+                z: transform.rotation.z,
+                w: transform.rotation.w,
+            },
+            false,
+        );
+        this.rigidbody.setLinvel(
+            {
+                x: 0,
+                y: 0,
+                z: 0,
+            },
+            false,
+        );
     }
 
     dispose() {
@@ -202,6 +230,7 @@ export class MeshComponent extends BaseComponent {
     }
 
     dispose(): void {
+        Globals.scene.remove(this.mesh);
         this.mesh.geometry.dispose();
         if (Array.isArray(this.mesh.material)) {
             this.mesh.material.forEach((mat) => mat.dispose());
@@ -443,11 +472,11 @@ export function setFollowRotationOffset(
 
 export class PickupComponent extends ScriptComponent {
     dependencies = [TransformComponent, RigidbodyComponent];
+    private triggers: Set<GameObject> = new Set<GameObject>();
     private pickedUp: boolean = false;
     public get isPickedUp(): boolean {
         return this.pickedUp;
     }
-    public triggers: Set<GameObject> = new Set<GameObject>();
     public onPickup?(other: GameObject): void;
 
     create(): void {
@@ -460,5 +489,21 @@ export class PickupComponent extends ScriptComponent {
         if (!this.triggers.has(other)) return;
         this.pickedUp = true;
         this.onPickup?.(other);
+    }
+
+    addTriggerObject(gameObject: GameObject): void {
+        this.triggers.add(gameObject);
+        if (gameObject.getComponent(RigidbodyComponent)?.collider) {
+            const rb = gameObject.getComponent(RigidbodyComponent)!;
+            rb.collider.setActiveEvents(ActiveEvents.COLLISION_EVENTS);
+        } else {
+            console.warn(
+                `PickupComponent: Trigger object ${gameObject.name} does not have a RigidbodyComponent with a collider.`,
+            );
+        }
+    }
+
+    removeTriggerObject(gameObject: GameObject): void {
+        this.triggers.delete(gameObject);
     }
 }
