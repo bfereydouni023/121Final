@@ -11,8 +11,6 @@ import { scene } from "../globals";
 import {
     createGameObject,
     destroyGameObject,
-    getObjectByName,
-    getObjectWithComponent,
     getSingletonComponent,
 } from "../objectSystem";
 import { Inventory } from "../inventory";
@@ -22,13 +20,8 @@ import { Inventory } from "../inventory";
  * - keyId: string stored in Inventory when picked up (e.g. "gold_key")
  * - playerId: optional id of player GameObject to register as a trigger (defaults to "player")
  */
-export function createKey(
-    position: THREE.Vector3,
-    keyId: string = "gold_key",
-    tileSize?: number,
-    playerId: string = "player",
-) {
-    const go = createGameObject();
+export function createKey(position: THREE.Vector3, keyId: string = "gold_key") {
+    const go = createGameObject(keyId);
     const tf = go.addComponent(TransformComponent);
     tf.position = { x: position.x, y: position.y, z: position.z };
     tf.rotation = { x: 0, y: 0, z: 0, w: 1 };
@@ -37,22 +30,12 @@ export function createKey(
     const geom = new THREE.SphereGeometry(2, 12, 12);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffcc00 });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.set(position.x, position.y, position.z);
-    mesh.userData = mesh.userData || {};
-    mesh.userData.type = "key";
-    mesh.userData.keyId = keyId;
-    mesh.userData.gameObject = go;
     scene.add(mesh);
     meshComp.mesh = mesh;
 
     const rb = go.addComponent(RigidbodyComponent);
-    // make it a fixed sensor-ish object (small collider)
     rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-    rb.rigidbody.setTranslation(
-        { x: position.x, y: position.y, z: position.z },
-        true,
-    );
-    rb.addCollider(RAPIER.ColliderDesc.ball(3), true);
+    rb.addCollider(RAPIER.ColliderDesc.ball(1), false);
 
     const pickup = go.addComponent(PickupComponent);
     // debug helper to confirm collisions are delivered to components
@@ -112,16 +95,6 @@ export function createKey(
             );
         }
     };
-
-    // Try to find the player gameobject to add as a trigger so pickup fires on player collision
-    const playerGO =
-        getObjectByName(playerId) ??
-        getObjectWithComponent(RigidbodyComponent) ??
-        null;
-    if (playerGO) pickup.addTriggerObject(playerGO);
-    console.log(
-        `[Key] pickup trigger set for player: ${playerGO?.name ?? "null"}`,
-    );
 
     // onPickup: add to inventory and destroy the key gameobject
     pickup.onPickup = (other) => {

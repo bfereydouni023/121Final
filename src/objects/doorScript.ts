@@ -7,7 +7,7 @@ import {
     ScriptComponent,
 } from "../components";
 import { scene } from "../globals";
-import { createGameObject, getObjectByName } from "../objectSystem";
+import { createGameObject } from "../objectSystem";
 import { getSingletonComponent } from "../objectSystem";
 import { Inventory } from "../inventory";
 
@@ -22,7 +22,7 @@ export function createDoor(
     keyId: string = "gold_key",
     onOpen?: (doorGO: ReturnType<typeof createDoor>) => void,
 ) {
-    const go = createGameObject();
+    const go = createGameObject("door");
     const tf = go.addComponent(TransformComponent);
     tf.position = { x: position.x, y: position.y, z: position.z };
     tf.rotation = { x: 0, y: 0, z: 0, w: 1 };
@@ -31,21 +31,12 @@ export function createDoor(
     const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
     const mat = new THREE.MeshStandardMaterial({ color: 0x663300 });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.set(position.x, position.y, position.z);
-    mesh.userData = mesh.userData || {};
-    mesh.userData.type = "door";
-    mesh.userData.keyId = keyId;
-    mesh.userData.gameObject = go;
     scene.add(mesh);
     meshComp.mesh = mesh;
 
     const rb = go.addComponent(RigidbodyComponent);
     // Make door a fixed collider so it blocks the player until opened
     rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-    rb.rigidbody.setTranslation(
-        { x: position.x, y: position.y, z: position.z },
-        true,
-    );
     // non-sensor collider so the door physically blocks the player while closed
     rb.addCollider(
         RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
@@ -83,60 +74,20 @@ export function createDoor(
     // When collision occurs, check player's inventory and open if they have the key
     script.onCollisionEnter = (other) => {
         if (opened) return;
-        // detect player by common userData.type === 'player' or id 'player'
-        // simpler check: look at mesh/userData via traversing components (best-effort)
-        const playerGO = getObjectByName("player");
-        // use safe, typed checks instead of `any` casts
-        const otherObj = other as unknown as {
-            id?: unknown;
-            getComponent?: unknown;
-        };
-        const isPlayerById = other === playerGO || otherObj.id === "player";
-        let isPlayer = Boolean(isPlayerById);
-        if (!isPlayer) {
-            // also allow collisions from objects tagged as player in their mesh userData
-            try {
-                const oc = other as unknown as {
-                    getComponent?: (c: unknown) => unknown;
-                };
-                if (typeof oc.getComponent === "function") {
-                    const maybe = oc.getComponent(MeshComponent) as unknown;
-                    if (maybe && typeof maybe === "object") {
-                        const meshCandidate = maybe as MeshComponent;
-                        if (
-                            meshCandidate.mesh &&
-                            meshCandidate.mesh.userData?.type === "player"
-                        ) {
-                            isPlayer = true;
-                        }
-                    }
-                }
-            } catch (checkErr) {
-                console.warn(
-                    "[Door] failed to check player mesh userData:",
-                    checkErr,
-                );
-            }
+        if (other.name !== "ball") return;
+        const inv = getSingletonComponent(Inventory);
+        if (inv.hasItem(keyId)) {
+            // optionally consume the key
+            inv.removeItem(keyId, 1);
+            openDoor();
+        } else {
+            console.debug(`[Door] player collided but lacks key '${keyId}'`);
         }
-
-        // check inventory
-        try {
-            const inv = getSingletonComponent(Inventory);
-            if (inv && inv.hasItem(keyId)) {
-                // optionally consume the key
-                inv.removeItem(keyId, 1);
-                openDoor();
-            } else {
-                console.debug(
-                    `[Door] player collided but lacks key '${keyId}'`,
-                );
-            }
-        } catch (err) {
-            console.warn("[Door] failed to access inventory:", err);
-        }
+    };
+    script.onCollisionExit = (other) => {
+        // no action on exit for now
+        console.debug("[Door] onCollisionExit with ", other?.name ?? other);
     };
 
     return go;
 }
-
-export default createDoor;
