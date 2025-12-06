@@ -10,7 +10,8 @@ import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { createGameObject } from "../objectSystem";
+import { createGameObject, destroyGameObject } from "../objectSystem";
+import { getObjectByName } from "../objectSystem";
 
 export class Level1 extends BaseLevel {
     constructor() {
@@ -62,13 +63,8 @@ export class Level1 extends BaseLevel {
             false,
         );
 
-        this.gameObjects.set(ground.id, ground);
+        this.gameObjects.set(ground.name, ground);
 
-        //#endregion --------------------------------------------------------
-
-        //#region  Create the ball -------------------------------------------
-        const ball = createBall(scene);
-        this.gameObjects.set(ball.id, ball);
         //#endregion --------------------------------------------------------
 
         //#region  Create the goal -------------------------------------------
@@ -79,7 +75,7 @@ export class Level1 extends BaseLevel {
         ); // near far end of ground
         const goalSize = new THREE.Vector3(4, 4, 4);
         const goal = createGoal(scene, goalPosition, goalSize);
-        this.gameObjects.set(goal.id, goal);
+        this.gameObjects.set(goal.name, goal);
         //#endregion
 
         //#region  Create simple level ---------------------------------------
@@ -111,10 +107,10 @@ export class Level1 extends BaseLevel {
             true,
         );
 
-        this.gameObjects.set(wallLeft.id, wallLeft);
-        this.gameObjects.set(wallRight.id, wallRight);
-        this.gameObjects.set(wallTop.id, wallTop);
-        this.gameObjects.set(wallBottom.id, wallBottom);
+        this.gameObjects.set(wallLeft.name, wallLeft);
+        this.gameObjects.set(wallRight.name, wallRight);
+        this.gameObjects.set(wallTop.name, wallTop);
+        this.gameObjects.set(wallBottom.name, wallBottom);
 
         //Create blocks as obstacles (Make a zigzag pattern)
         createBlock(
@@ -142,5 +138,16 @@ export class Level1 extends BaseLevel {
         const light = new THREE.DirectionalLight(0xffffff, 1);
         light.position.set(-25, 0, 75);
         scene.add(light);
+    }
+
+    protected onActivate(): void {
+        //#region  Create the ball -------------------------------------------
+        const ball = createBall(scene);
+        this.gameObjects.set(ball.name, ball);
+        //#endregion --------------------------------------------------------
+    }
+
+    protected onDeactivate(): void {
+        destroyGameObject(getObjectByName("ball")!);
     }
 }

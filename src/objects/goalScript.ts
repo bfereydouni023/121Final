@@ -7,12 +7,14 @@ import {
     RigidbodyComponent,
     ScriptComponent,
 } from "../components";
+import { Level2 } from "../levels/level2";
 
 /**
  * createGoal(scene, position, size)
  * - Adds a goal cube to the scene and returns the created GameObject.
  * - When the ball enters the goal volume this dispatches a "game:victory" event:
  *     window.dispatchEvent(new CustomEvent('game:victory', { detail: { goalId } }))
+ * - If the current level is Level1, it will attempt to swap to Level2 via the LevelManager.
  */
 export function createGoal(
     scene: THREE.Scene,
@@ -77,14 +79,24 @@ export function createGoal(
         if (box.containsPoint(ballPos)) {
             triggered = true;
             // dispatch a generic event so UI / main can listen and transition to a victory screen
+            // window.dispatchEvent(
+            //     new CustomEvent("game:victory", {
+            //         detail: { goalId: goal.id },
+            //     }),
+            // );
+
+            // Do NOT call swapToLevel directly from the physics step.
+            // Instead request a deferred swap handled by main.ts so the swap runs outside the physics loop.
             window.dispatchEvent(
-                new CustomEvent("game:victory", {
-                    detail: { goalId: goal.id },
+                new CustomEvent("request:level-swap", {
+                    detail: { id: Level2.name },
                 }),
             );
+            console.debug("[Goal] requested deferred swap to", Level2.name);
+
             // optional: visual feedback
             (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-            console.log("[Goal] victory triggered for goal", goal.id);
+            //onsole.log("[Goal] victory triggered for goal", goal.id);
         }
     };
 
@@ -166,12 +178,15 @@ export function createOverlay(
             // dispatch a generic event so UI / main can listen and transition to a victory screen
             window.dispatchEvent(
                 new CustomEvent("game:victory", {
-                    detail: { goalId: overlay.id },
+                    detail: { goalId: overlay.name },
                 }),
             );
             // optional: visual feedback
             (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-            console.log("[Overlay] victory triggered for overlay", overlay.id);
+            console.log(
+                "[Overlay] victory triggered for overlay",
+                overlay.name,
+            );
         }
     };
 
