@@ -1,4 +1,5 @@
-import { destroyGameObject } from "../objectSystem";
+import { destroyGameObject, getSingletonComponent } from "../objectSystem";
+import { RespawnSystem } from "../respawnSystem";
 import type { Level, GameObject } from "../types";
 import { IsResettable, ResetGameObjects } from "../utilities";
 
@@ -29,6 +30,7 @@ export class BaseLevel implements Level {
                 IsResettable(go),
             ),
         );
+        getSingletonComponent(RespawnSystem).respawn();
     }
 
     protected createObjects(): void {}
