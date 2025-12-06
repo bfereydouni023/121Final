@@ -10,6 +10,8 @@ import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
 import { destroyGameObject, getObjectByID } from "../objectSystem";
 import { createGround } from "../objects/groundScript";
+import { createKey } from "../objects/keyScript";
+import { createDoor } from "../objects/doorScript";
 
 export class Level2 extends BaseLevel {
     constructor() {
@@ -95,7 +97,25 @@ export class Level2 extends BaseLevel {
         this.gameObjects.set(goal.id, goal);
         //#endregion
 
-        //#region  Create simple level ---------------------------------------
+        //#region  Create simple level --------------------------------------
+
+        //Create a Key
+        const keyPosition = new THREE.Vector3(
+            baseOffset.x + 0,
+            baseOffset.y + 1,
+            baseOffset.z - tileSize * 1 + 6,
+        );
+        const key = createKey(keyPosition, "gold_key", tileSize);
+        this.gameObjects.set(key.id, key);
+
+        //Create a Door
+        const doorPosition = new THREE.Vector3(
+            baseOffset.x - 10,
+            baseOffset.y + 1,
+            baseOffset.z - tileSize * 1 + 6,
+        );
+        const door = createDoor(doorPosition, new THREE.Vector3(4, 5, 1), "gold_key");
+        this.gameObjects.set(door.id, door);
 
         //#endregion --------------------------------------------------------
 
