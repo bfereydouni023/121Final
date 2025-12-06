@@ -202,6 +202,7 @@ export class MeshComponent extends BaseComponent {
     }
 
     dispose(): void {
+        Globals.scene.remove(this.mesh);
         this.mesh.geometry.dispose();
         if (Array.isArray(this.mesh.material)) {
             this.mesh.material.forEach((mat) => mat.dispose());
