@@ -17,7 +17,10 @@ class GameObjectImpl implements GameObject {
     get active(): boolean {
         return this._active;
     }
-    constructor(public id: string) {}
+    constructor(
+        public name: string,
+        public id: number,
+    ) {}
 
     /**
      * @returns The added component
@@ -92,7 +95,19 @@ class GameObjectImpl implements GameObject {
     }
 
     dispose() {
+        // Ensure components are removed from global update lists before disposing them
+        try {
+            removeComponentsFromLists(this.components);
+        } catch (err) {
+            // defensive: continue even if list removal fails
+            console.warn(
+                "removeComponentsFromLists failed during dispose:",
+                err,
+            );
+        }
+
         for (const component of this.components) {
+            // allow each component to clean up its own resources (meshes, rigidbodies, etc.)
             component.dispose?.();
         }
         this.components = [];
@@ -100,6 +115,8 @@ class GameObjectImpl implements GameObject {
     }
 }
 
+let uniqueId = 0;
+const objectIdMap = new Map<number, GameObject>();
 const objects: Array<GameObject> = [];
 const components = {
     physics: new Array<Component>(),
@@ -115,11 +132,13 @@ export function getActiveRenderComponents(): Array<Component> {
     return components.render;
 }
 
-export function createGameObject(id: string | null = null): GameObject {
+export function createGameObject(name: string | null = null): GameObject {
     const obj = new GameObjectImpl(
-        id ? id.toLowerCase() : `game_object_${objects.length}`,
+        name ? name.toLowerCase() : `game_object_${uniqueId}`,
+        uniqueId++,
     );
     objects.push(obj);
+    objectIdMap.set(obj.id, obj);
     return obj;
 }
 
@@ -127,11 +146,14 @@ export function getAllGameObjects(): Array<GameObject> {
     return Array.from(objects);
 }
 
-export function destroyGameObject(gameObject: GameObject): void {
-    const index = objects.indexOf(gameObject);
-    if (index !== -1) {
-        objects.splice(index, 1);
-        gameObject.dispose();
+export function destroyGameObject(...gameObject: GameObject[]): void {
+    const toRemove = new Set(gameObject);
+    for (let i = objects.length - 1; i >= 0; i--) {
+        if (toRemove.has(objects[i])) {
+            const obj = objects[i];
+            obj.dispose();
+            objects.splice(i, 1);
+        }
     }
 }
 
@@ -224,18 +246,27 @@ export function getSingletonComponent<T extends SingletonComponent>(
     return getOrCreateSingletonComponent(componentType);
 }
 
-// Warning: Slow operation, avoid using in performance-critical code
-export function getObjectByID(id: string): GameObject | null {
-    id = id.toLowerCase();
+/**
+ * Finds a game object by its name (case-insensitive).
+ * @remarks Warning: Slow operation, avoid using in performance-critical code. Use {@link getObjectById} when possible.
+ */
+export function getObjectByName(name: string): GameObject | null {
+    name = name.toLowerCase();
     for (let i = 0; i < objects.length; i++) {
-        if (objects[i].id === id) {
+        if (objects[i].name.toLowerCase() === name) {
             return objects[i];
         }
     }
     return null;
 }
 
-// Warning: Slow operation, avoid using in performance-critical code
+export function getObjectById(id: number): GameObject | null {
+    return objectIdMap.get(id) || null;
+}
+
+/**
+ * Warning: Slow operation, avoid using in performance-critical code
+ */
 export function getObjectWithComponent<T extends Component>(
     componentType: new (gameObject: GameObject) => T,
 ): GameObject | null {

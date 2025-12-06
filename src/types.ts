@@ -1,4 +1,5 @@
 import type { Collider } from "@dimforge/rapier3d-compat";
+import type { PerspectiveCamera } from "three";
 
 export interface Vector3 {
     x: number;
@@ -16,7 +17,7 @@ export interface Transform {
     rotation: Rotation;
 }
 
-export interface Level {
+export interface Level extends Resettable {
     id: string;
     get active(): boolean;
     set active(value: boolean);
@@ -25,7 +26,8 @@ export interface Level {
 }
 
 export interface GameObject {
-    id: string;
+    name: string;
+    id: number;
     set active(value: boolean);
     get active(): boolean;
     addComponent<T extends Component>(
@@ -66,3 +68,11 @@ export interface RaycastHit {
     collider: Collider;
     gameObject: GameObject | null;
 }
+
+export interface Resettable {
+    reset(): void;
+}
+
+export type MainCamera = PerspectiveCamera & {
+    gameObject: GameObject;
+};

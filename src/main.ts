@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import "./style.css";
+import "./console.ts";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import {
     renderer,
@@ -8,15 +9,16 @@ import {
     setRenderer,
     setWorld,
     world,
+    scene,
+    setScene,
+    cameraMapViewTransform,
 } from "./globals";
 import {
     createGameObject,
     getActivePhysicsComponents,
     getActiveRenderComponents,
-    getObjectByID,
     getSingletonComponent,
 } from "./objectSystem";
-import { createLevel } from "./levels/level1";
 import { Input } from "./input";
 import {
     CameraComponent,
@@ -25,6 +27,13 @@ import {
     TransformComponent,
     getGameObjectFromCollider,
 } from "./components";
+import { TweenManager } from "./tweenManager";
+import { LevelManager } from "./levelManager";
+import type { MainCamera } from "./types";
+//import { Level1 } from "./levels/level1";
+import { Level2 } from "./levels/level2.ts";
+import createUIManager from "./uiManager";
+import { rotateFollowLeft, rotateFollowRight } from "./utilities";
 
 // TUNABLE PARAMETERS]
 
@@ -33,7 +42,10 @@ await RAPIER.init();
 
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
+const maxPhysicsStepsPerFrame = 1;
 const physicsClock = new THREE.Clock();
+physicsClock.autoStart = false;
+physicsClock.start();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
@@ -110,7 +122,7 @@ function updateFPSCounter(delta: number): void {
 }
 
 const renderClock = new THREE.Clock();
-const scene = new THREE.Scene();
+setScene(new THREE.Scene());
 
 // FPS counter variables
 let fpsElement: HTMLDivElement;
@@ -126,14 +138,7 @@ scene.background = new THREE.Color(0x87ceeb);
 // add some ambient lighting so dark/shadowed areas are visible
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
-setMainCamera(
-    new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000,
-    ),
-);
+setMainCamera(setupCamera());
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
@@ -145,13 +150,58 @@ document.body.appendChild(renderer.domElement);
 createFPSCounter();
 
 const input = getSingletonComponent(Input);
+const tweenManager = getSingletonComponent(TweenManager);
+const levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
-// create the level
-const _created = createLevel(scene, mainCamera);
+// --- UI: bottom-center arrow buttons (left / right) ---
+const ui = createUIManager();
+// move the UI container to bottom-center and layout buttons horizontally
+ui.container.style.left = "50%";
+ui.container.style.right = "auto";
+ui.container.style.top = "auto";
+ui.container.style.bottom = "24px";
+ui.container.style.transform = "translateX(-50%)";
+ui.container.style.flexDirection = "row";
+ui.container.style.alignItems = "center";
+ui.container.style.justifyContent = "center";
+ui.container.style.gap = "12px";
+
+const btnStyle: Partial<CSSStyleDeclaration> = {
+    width: "56px",
+    height: "56px",
+    borderRadius: "28px",
+    fontSize: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(32,32,32,0.95)", // darker fill for better contrast
+    color: "#ffffff",
+    border: "1px solid rgba(0,0,0,0.6)",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
+};
+
+ui.createButton(
+    "btn-left",
+    "◀",
+    () => {
+        console.debug("UI: left button clicked");
+        rotateFollowLeft();
+    },
+    { ariaLabel: "Move Left", style: btnStyle },
+);
+ui.createButton(
+    "btn-right",
+    "▶",
+    () => {
+        console.debug("UI: right button clicked");
+        rotateFollowRight();
+    },
+    { ariaLabel: "Move Right", style: btnStyle },
+);
 
 // Todo: move camera setup to a helper function
-setupCameraTracking();
+setupCamera();
 
 // update on window resize
 window.addEventListener("resize", () => {
@@ -160,6 +210,14 @@ window.addEventListener("resize", () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+window.onfocus = () => {
+    physicsClock.start();
+};
+
+window.onblur = () => {
+    physicsClock.stop();
+};
+
 // Raycast click detection leverages the Input singleton + Rapier queries
 input.addEventListener("mouseDown", (mouseEvent) => {
     const hit = input.raycastPhysics(
@@ -167,7 +225,7 @@ input.addEventListener("mouseDown", (mouseEvent) => {
         mainCamera,
         {
             predicate: (collider) =>
-                getGameObjectFromCollider(collider)?.id === "ball",
+                getGameObjectFromCollider(collider)?.name === "ball",
         },
     );
     const go = hit?.gameObject;
@@ -177,48 +235,80 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
-renderer.setAnimationLoop(renderUpdate);
+// perform actual swap outside physics loop when requested by game logic
+window.addEventListener("request:level-swap", (ev: Event) => {
+    const id = (ev as CustomEvent).detail?.id;
+    if (!id) return;
+    // defer to next macrotask so we are not inside physics iteration
+    setTimeout(() => {
+        try {
+            levelManager.swapToLevel(id);
+            console.debug(`[Main] swapped to ${id} (deferred)`);
+        } catch (err) {
+            console.warn(`[Main] deferred swapToLevel(${id}) failed:`, err);
+        }
+    }, 0);
+});
 
-function setupCameraTracking() {
+levelManager.swapToLevel(Level2.name);
+renderer.setAnimationLoop(gameLoop);
+
+function setupCamera(): MainCamera {
     const cameraObject = createGameObject("Main Camera");
-    cameraObject.addComponent(TransformComponent);
-    const followComponent = cameraObject.addComponent(FollowComponent);
+    const transform = cameraObject.addComponent(TransformComponent);
+    cameraObject.addComponent(FollowComponent);
     const cameraComponent = cameraObject.addComponent(CameraComponent);
-    cameraComponent.camera = mainCamera;
+    cameraComponent.camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000,
+    );
+    transform.position = cameraMapViewTransform.position;
+    transform.rotation = cameraMapViewTransform.rotation;
     cameraComponent.camera.rotation.order = "YXZ"; // set rotation order to avoid gimbal lock
-    const ball = getObjectByID("ball");
-    if (ball == null) {
-        console.warn("Could not find ball for camera follow");
-    } else {
-        followComponent.target = ball.getComponent(TransformComponent)!;
-    }
-    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
-    followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
-    followComponent.rotationMode = "fixed";
-    followComponent.positionMode = "follow";
-    followComponent.positionSmoothFactor = 0.1;
+    const mainCam = cameraComponent.camera as MainCamera;
+    mainCam.gameObject = cameraObject;
+    return mainCam;
 }
 
-function renderUpdate() {
+//Eslint told me this code was unused
+// find ball mesh/object (adjust to your API - example finds mesh with userData.type === 'ball')
+// let ballObject: THREE.Object3D | null = null;
+// scene.traverse((o) => {
+//     const ud = (o as unknown as { userData?: Record<string, unknown> })
+//         .userData;
+//     if (ud && ud.type === "ball") ballObject = o;
+// });
+
+function gameLoop() {
     const delta = renderClock.getDelta();
 
     // Update FPS counter
     updateFPSCounter(delta);
 
     // Update physics with fixed timestep
-    physicsAccumulator += delta;
+    physicsAccumulator += physicsClock.getDelta();
+    // Cap the accumulator to avoid spiral of death after tab switch
+    if (physicsAccumulator > maxPhysicsStepsPerFrame * world.timestep) {
+        physicsAccumulator = maxPhysicsStepsPerFrame * world.timestep;
+    }
+    let steps = 0;
     while (physicsAccumulator >= world.timestep) {
         physicsUpdate();
         physicsAccumulator -= world.timestep;
+        steps++;
+    }
+    if (steps > 1) {
+        console.debug(`Physics steps this frame: ${steps}`);
     }
 
-    // Update physics with fixed timestep
-    physicsAccumulator += delta;
-    while (physicsAccumulator >= world.timestep) {
-        physicsUpdate();
-        physicsAccumulator -= world.timestep;
-    }
+    tweenManager.updateTweens(delta);
 
+    renderUpdate(delta);
+}
+
+function renderUpdate(delta: number) {
     const components = getActiveRenderComponents();
     for (let i = 0; i < components.length; i++) {
         components[i].renderUpdate!(delta);
@@ -227,12 +317,56 @@ function renderUpdate() {
     renderer.render(scene, mainCamera);
 }
 
-function physicsUpdate() {
+function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
 
-    const _delta = physicsClock.getDelta();
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
-        components[i].physicsUpdate!(_delta);
+        components[i].physicsUpdate!(delta);
     }
+
+    physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
+        const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
+        const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
+        if (!obj1 || !obj2) return;
+
+        for (const script of obj1.getComponents(ScriptComponent)) {
+            if (started) {
+                script.onCollisionEnter?.(obj2);
+            } else {
+                script.onCollisionExit?.(obj2);
+            }
+        }
+        for (const script of obj2.getComponents(ScriptComponent)) {
+            if (started) {
+                script.onCollisionEnter?.(obj1);
+            } else {
+                script.onCollisionExit?.(obj1);
+            }
+        }
+    });
 }
+
+// Quick keys to swap levels: 1 -> Level1, 2 -> Level2, 3 -> Level3 (if registered)
+window.addEventListener("keydown", (ev: KeyboardEvent) => {
+    // ignore if typing in an input
+    const active = document.activeElement;
+    if (
+        active &&
+        (active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            (active as HTMLElement).isContentEditable)
+    )
+        return;
+
+    const k = ev.key;
+    if (k === "1" || k === "2" || k === "3") {
+        const id = `level${k}`;
+        try {
+            levelManager.swapToLevel(id);
+            console.debug(`[Main] swapped to ${id}`);
+        } catch (err) {
+            console.warn(`[Main] swapToLevel(${id}) failed:`, err);
+        }
+    }
+});

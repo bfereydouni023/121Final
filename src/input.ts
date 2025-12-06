@@ -57,6 +57,12 @@ export interface PointerInputEvent extends PointerMotionInfo {
     height: number;
     screenPosition: { x: number; y: number };
     normalizedPosition: { x: number; y: number };
+    // added DOM coordinates so consumers can access clientX/clientY directly
+    clientX: number;
+    clientY: number;
+    // optional more familiar names (match many code expectations)
+    screenX: number;
+    screenY: number;
     timestamp: number;
     modifiers: InputModifierState;
 }
@@ -297,8 +303,14 @@ export class Input implements SingletonComponent {
             buttons: event.buttons,
             width: event.width ?? 1,
             height: event.height ?? 1,
+            // screenPosition / normalizedPosition kept for backwards compatibility
             screenPosition: { ...this.screenMousePosition },
             normalizedPosition: { x: ndcX, y: ndcY },
+            // expose raw DOM coordinates that some handlers expect
+            clientX: event.clientX,
+            clientY: event.clientY,
+            screenX: event.screenX ?? event.clientX,
+            screenY: event.screenY ?? event.clientY,
             timestamp,
             modifiers: this.extractModifierState(event),
             velocity: motion.velocity,
