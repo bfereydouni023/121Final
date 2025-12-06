@@ -35,7 +35,8 @@ export function createKey(position: THREE.Vector3, keyId: string = "gold_key") {
 
     const rb = go.addComponent(RigidbodyComponent);
     rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-    rb.addCollider(RAPIER.ColliderDesc.ball(1), false);
+    rb.addCollider(RAPIER.ColliderDesc.ball(2), false);
+    rb.collider.setSensor(true);
 
     const pickup = go.addComponent(PickupComponent);
     // debug helper to confirm collisions are delivered to components
