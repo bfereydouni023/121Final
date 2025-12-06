@@ -104,8 +104,6 @@ export class TransformComponent extends BaseComponent {
 export class RigidbodyComponent extends BaseComponent {
     static readonly DEFAULT_GROUP = Globals.mouseInteractionGroup | 0x1;
     dependencies = [TransformComponent];
-    mass: number = 1;
-    velocity: Vector3 = { x: 0, y: 0, z: 0 };
     public rigidbody: RigidBody;
     private _collider: Collider;
     get collider(): Collider {
@@ -121,6 +119,36 @@ export class RigidbodyComponent extends BaseComponent {
             this.rigidbody,
         );
         registerColliderOwner(this._collider, this.gameObject);
+    }
+
+    create(): void {
+        // Initialize rigidbody position from TransformComponent
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        this.rigidbody.setTranslation(
+            {
+                x: transform.position.x,
+                y: transform.position.y,
+                z: transform.position.z,
+            },
+            false,
+        );
+        this.rigidbody.setRotation(
+            {
+                x: transform.rotation.x,
+                y: transform.rotation.y,
+                z: transform.rotation.z,
+                w: transform.rotation.w,
+            },
+            false,
+        );
+        this.rigidbody.setLinvel(
+            {
+                x: 0,
+                y: 0,
+                z: 0,
+            },
+            false,
+        );
     }
 
     dispose() {
