@@ -110,16 +110,24 @@ export function createUIManager(
             modeToggleBtn.style.background = hudColors.buttonBg;
             modeToggleBtn.style.color = hudColors.buttonText;
             modeToggleBtn.style.border = `1px solid ${hudColors.border}`;
-            (modeToggleBtn.style as CSSStyleDeclaration).boxShadow = hudColors.shadow;
+            (modeToggleBtn.style as CSSStyleDeclaration).boxShadow =
+                hudColors.shadow;
             modeToggleBtn.textContent = hudMode === "dark" ? "🌙" : "🌞";
-            modeToggleBtn.setAttribute("aria-pressed", hudMode === "dark" ? "true" : "false");
+            modeToggleBtn.setAttribute(
+                "aria-pressed",
+                hudMode === "dark" ? "true" : "false",
+            );
         }
     }
     // prefer to detect system preference initially
     try {
-        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const prefersDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
         setHUDMode(prefersDark ? "dark" : "light");
-    } catch {}
+    } catch (err) {
+        console.warn("Could not detect system color scheme preference:", err);
+    }
 
     // container for buttons
     const container = document.createElement("div");
@@ -137,7 +145,7 @@ export function createUIManager(
     parent.appendChild(container);
 
     let overlay: HTMLDivElement | undefined = undefined;
-    
+
     // top-left mode toggle (Light / Dark)
     const topLeftContainer = document.createElement("div");
     topLeftContainer.style.position = "fixed";
@@ -168,7 +176,10 @@ export function createUIManager(
             const next = hudMode === "dark" ? "light" : "dark";
             setHUDMode(next);
             btn.textContent = next === "dark" ? "🌙" : "🌞";
-            btn.setAttribute("aria-pressed", next === "dark" ? "true" : "false");
+            btn.setAttribute(
+                "aria-pressed",
+                next === "dark" ? "true" : "false",
+            );
         });
         modeToggleBtn = btn;
         return btn;
@@ -195,7 +206,8 @@ export function createUIManager(
         el.style.opacity = "0";
         el.style.transform = "translateY(18px) scale(0.9)";
         // set a default transition that will be overridden per-phase
-        el.style.transition = "transform 320ms cubic-bezier(.2,.8,.2,1), opacity 320ms ease";
+        el.style.transition =
+            "transform 320ms cubic-bezier(.2,.8,.2,1), opacity 320ms ease";
 
         // bubble background and padding (uses HUD theme colors)
         el.style.background = hudColors.bubbleBg;
@@ -215,7 +227,11 @@ export function createUIManager(
 
     function clearKeyTimers() {
         for (const t of keyAnimTimers) {
-            try { window.clearTimeout(t); } catch {}
+            try {
+                window.clearTimeout(t);
+            } catch (err) {
+                console.error("Error clearing key animation timer:", err);
+            }
         }
         keyAnimTimers = [];
     }
@@ -229,8 +245,11 @@ export function createUIManager(
         // start clean
         clearKeyTimers();
         try {
-            if (keyAnimEl && keyAnimEl.parentElement) keyAnimEl.parentElement.removeChild(keyAnimEl);
-        } catch {}
+            if (keyAnimEl && keyAnimEl.parentElement)
+                keyAnimEl.parentElement.removeChild(keyAnimEl);
+        } catch (err) {
+            console.error("Error removing keyAnimEl:", err);
+        }
         keyAnimEl = createKeyEmojiElement();
         parent.appendChild(keyAnimEl);
 
@@ -256,8 +275,11 @@ export function createUIManager(
             // remove element after the disappear transition completes
             const remover = window.setTimeout(() => {
                 try {
-                    if (keyAnimEl && keyAnimEl.parentElement) keyAnimEl.parentElement.removeChild(keyAnimEl);
-                } catch {}
+                    if (keyAnimEl && keyAnimEl.parentElement)
+                        keyAnimEl.parentElement.removeChild(keyAnimEl);
+                } catch (err) {
+                    console.error("Error removing keyAnimEl:", err);
+                }
                 keyAnimEl = null;
             }, DISAPPEAR_MS + 24);
             keyAnimTimers.push(remover);
@@ -400,10 +422,15 @@ export function createUIManager(
         // cleanup key animation & listener
         try {
             window.removeEventListener("keydown", onKeyPressForKeyEmoji);
-        } catch {}
+        } catch (err) {
+            console.error("Error removing keydown listener:", err);
+        }
         try {
-            if (keyAnimEl && keyAnimEl.parentElement) keyAnimEl.parentElement.removeChild(keyAnimEl);
-        } catch {}
+            if (keyAnimEl && keyAnimEl.parentElement)
+                keyAnimEl.parentElement.removeChild(keyAnimEl);
+        } catch (err) {
+            console.error("Error removing keyAnimEl:", err);
+        }
         clearKeyTimers();
         overlay = undefined;
     }
