@@ -18,12 +18,7 @@ import { mainCamera } from "../globals";
  * NOTE: This function now requires the active camera. Pointer interactions are wired through the
  * global Input event bus so individual objects no longer need direct DOM access.
  */
-export function createBall(
-    scene: THREE.Scene,
-    x?: number,
-    y?: number,
-    z?: number,
-) {
+export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     // validate camera early to give a clear error
     if (!mainCamera) {
         throw new Error(
@@ -35,7 +30,7 @@ export function createBall(
 
     // Transform
     const t = ball.addComponent(TransformComponent);
-    t.position = { x: x ?? 0, y: y ?? 10, z: z ?? 0 };
+    t.position = position.clone();
 
     // Visual mesh
     const meshComp = ball.addComponent(MeshComponent);
@@ -48,15 +43,11 @@ export function createBall(
             roughness: 0.6,
         }),
     );
-    meshComp.mesh.userData = meshComp.mesh.userData || {};
-    meshComp.mesh.userData.type = "ball";
-    meshComp.mesh.userData.gameObject = ball;
     scene.add(meshComp.mesh);
 
     // Physics
     const rbComp = ball.addComponent(RigidbodyComponent);
     rbComp.rigidbody.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
-    rbComp.mass = 1;
     rbComp.addCollider(RAPIER.ColliderDesc.ball(radius), false);
 
     // Script / behavior component - adds drag-to-launch interactions
@@ -125,7 +116,6 @@ export function createBall(
 
     function onPointerUp(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
-
         const dragEndWorld = new THREE.Vector3();
         const got = pointerToWorldOnBallPlane(ev, dragEndWorld);
         // fallback: if plane intersection fails, use last known tmpVec

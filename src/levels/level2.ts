@@ -1,17 +1,18 @@
 import * as THREE from "three";
-import {
-    TransformComponent,
-    MeshComponent,
-    RigidbodyComponent,
-} from "../components";
+import { TransformComponent, PickupComponent } from "../components";
 import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { destroyGameObject, getObjectByName } from "../objectSystem";
+import {
+    destroyGameObject,
+    getObjectByName,
+    getSingletonComponent,
+} from "../objectSystem";
 import { createGround } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
+import { RespawnSystem } from "../respawnSystem";
 
 export class Level2 extends BaseLevel {
     constructor() {
@@ -42,43 +43,10 @@ export class Level2 extends BaseLevel {
                 color: 0x808080,
             });
             // apply base offset so grid is positioned where the previous large ground was
-            const tf = go.getComponent(TransformComponent);
-            const meshComp = go.getComponent(MeshComponent);
-            const rbComp = go.getComponent(RigidbodyComponent);
-            if (tf) {
-                tf.position.x += baseOffset.x;
-                tf.position.y += baseOffset.y; // keep same vertical offset used in level
-                tf.position.z += baseOffset.z;
-            }
-            // sync visual and physics to the updated transform
-            try {
-                if (meshComp?.mesh) {
-                    meshComp.mesh.position.set(
-                        tf!.position.x,
-                        tf!.position.y,
-                        tf!.position.z,
-                    );
-                    meshComp.mesh.userData = meshComp.mesh.userData || {};
-                    meshComp.mesh.userData.type = "ground";
-                    meshComp.mesh.userData.gameObject = go;
-                }
-            } catch (err) {
-                console.warn("level2 optional block error:", err);
-            }
-            try {
-                if (rbComp?.rigidbody && tf) {
-                    rbComp.rigidbody.setTranslation(
-                        {
-                            x: tf.position.x,
-                            y: tf.position.y,
-                            z: tf.position.z,
-                        },
-                        true,
-                    );
-                }
-            } catch (err) {
-                console.warn("level2 optional block error:", err);
-            }
+            const tf = go.getComponent(TransformComponent)!;
+            tf.position.x += baseOffset.x;
+            tf.position.y += baseOffset.y; // keep same vertical offset used in level
+            tf.position.z += baseOffset.z;
 
             this.gameObjects.set(go.name, go);
         }
@@ -105,7 +73,7 @@ export class Level2 extends BaseLevel {
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const key = createKey(keyPosition, "gold_key", tileSize);
+        const key = createKey(keyPosition, "gold_key");
         this.gameObjects.set(key.name, key);
 
         //Create a Door
@@ -130,11 +98,15 @@ export class Level2 extends BaseLevel {
     }
 
     protected onActivate(): void {
-        //#region  Create the ball ------------------------------------------
-        //Ball position manually set due to protection
-        const ball = createBall(scene, 500, 0, -15);
+        const startPosition = new THREE.Vector3(500, 0, -15);
+        const ball = createBall(scene, startPosition);
+        getSingletonComponent(RespawnSystem).respawnPoint.position =
+            startPosition;
         this.gameObjects.set(ball.name, ball);
-        //#endregion --------------------------------------------------------
+        this.gameObjects
+            .get("gold_key")!
+            .getComponent(PickupComponent)!
+            .addTriggerObject(ball);
     }
 
     protected onDeactivate(): void {

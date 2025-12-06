@@ -10,8 +10,13 @@ import { createGoal } from "../objects/goalScript";
 import { createBlock } from "./block";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { createGameObject, destroyGameObject } from "../objectSystem";
+import {
+    createGameObject,
+    destroyGameObject,
+    getSingletonComponent,
+} from "../objectSystem";
 import { getObjectByName } from "../objectSystem";
+import { RespawnSystem } from "../respawnSystem";
 
 export class Level1 extends BaseLevel {
     constructor() {
@@ -141,10 +146,14 @@ export class Level1 extends BaseLevel {
     }
 
     protected onActivate(): void {
-        //#region  Create the ball -------------------------------------------
-        const ball = createBall(scene);
+        const startPosition = new THREE.Vector3(0, 0, 0);
+        const ball = createBall(scene, startPosition);
+        getSingletonComponent(RespawnSystem).respawnPoint = {
+            position: startPosition,
+            rotation: new THREE.Quaternion(0, 0, 0, 1),
+            scale: new THREE.Vector3(1, 1, 1),
+        };
         this.gameObjects.set(ball.name, ball);
-        //#endregion --------------------------------------------------------
     }
 
     protected onDeactivate(): void {
