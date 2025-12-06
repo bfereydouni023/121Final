@@ -42,7 +42,7 @@ await RAPIER.init();
 
 setWorld(new RAPIER.World({ x: 0, y: -9.81, z: 0 }));
 world.timestep = 1 / 60;
-const maxPhysicsStepsPerFrame = 3;
+const maxPhysicsStepsPerFrame = 1;
 const physicsClock = new THREE.Clock();
 physicsClock.autoStart = false;
 physicsClock.start();
@@ -293,9 +293,14 @@ function gameLoop() {
     if (physicsAccumulator > maxPhysicsStepsPerFrame * world.timestep) {
         physicsAccumulator = maxPhysicsStepsPerFrame * world.timestep;
     }
+    let steps = 0;
     while (physicsAccumulator >= world.timestep) {
         physicsUpdate();
         physicsAccumulator -= world.timestep;
+        steps++;
+    }
+    if (steps > 1) {
+        console.debug(`Physics steps this frame: ${steps}`);
     }
 
     tweenManager.updateTweens(delta);
@@ -314,27 +319,32 @@ function renderUpdate(delta: number) {
 
 function physicsUpdate(delta: number = world.timestep) {
     world.step(physicsEventQueue);
-    // physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
-    //     const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
-    //     const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
-    //     if (!obj1 || !obj2) return;
-
-    //     const script1 = obj1.getComponent(ScriptComponent);
-    //     if (script1) {
-    //         if (started) script1?.onCollisionEnter?.(obj2);
-    //         else script1?.onCollisionExit?.(obj2);
-    //     }
-    //     const script2 = obj2.getComponent(ScriptComponent);
-    //     if (script2) {
-    //         if (started) script2?.onCollisionEnter?.(obj1);
-    //         else script2?.onCollisionExit?.(obj1);
-    //     }
-    // });
 
     const components = getActivePhysicsComponents();
     for (let i = 0; i < components.length; i++) {
         components[i].physicsUpdate!(delta);
     }
+
+    physicsEventQueue.drainCollisionEvents((handle1, handle2, started) => {
+        const obj1 = getGameObjectFromCollider(world.getCollider(handle1));
+        const obj2 = getGameObjectFromCollider(world.getCollider(handle2));
+        if (!obj1 || !obj2) return;
+
+        for (const script of obj1.getComponents(ScriptComponent)) {
+            if (started) {
+                script.onCollisionEnter?.(obj2);
+            } else {
+                script.onCollisionExit?.(obj2);
+            }
+        }
+        for (const script of obj2.getComponents(ScriptComponent)) {
+            if (started) {
+                script.onCollisionEnter?.(obj1);
+            } else {
+                script.onCollisionExit?.(obj1);
+            }
+        }
+    });
 }
 
 // Quick keys to swap levels: 1 -> Level1, 2 -> Level2, 3 -> Level3 (if registered)

@@ -443,11 +443,11 @@ export function setFollowRotationOffset(
 
 export class PickupComponent extends ScriptComponent {
     dependencies = [TransformComponent, RigidbodyComponent];
+    private triggers: Set<GameObject> = new Set<GameObject>();
     private pickedUp: boolean = false;
     public get isPickedUp(): boolean {
         return this.pickedUp;
     }
-    public triggers: Set<GameObject> = new Set<GameObject>();
     public onPickup?(other: GameObject): void;
 
     create(): void {
@@ -460,5 +460,21 @@ export class PickupComponent extends ScriptComponent {
         if (!this.triggers.has(other)) return;
         this.pickedUp = true;
         this.onPickup?.(other);
+    }
+
+    addTriggerObject(gameObject: GameObject): void {
+        this.triggers.add(gameObject);
+        if (gameObject.getComponent(RigidbodyComponent)?.collider) {
+            const rb = gameObject.getComponent(RigidbodyComponent)!;
+            rb.collider.setActiveEvents(ActiveEvents.COLLISION_EVENTS);
+        } else {
+            console.warn(
+                `PickupComponent: Trigger object ${gameObject.id} does not have a RigidbodyComponent with a collider.`,
+            );
+        }
+    }
+
+    removeTriggerObject(gameObject: GameObject): void {
+        this.triggers.delete(gameObject);
     }
 }

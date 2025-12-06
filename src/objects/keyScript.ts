@@ -118,7 +118,10 @@ export function createKey(
         getObjectByID(playerId) ??
         getObjectWithComponent(RigidbodyComponent) ??
         null;
-    if (playerGO) pickup.triggers.add(playerGO);
+    if (playerGO) pickup.addTriggerObject(playerGO);
+    console.log(
+        `[Key] pickup trigger set for player: ${playerGO?.id ?? "null"}`,
+    );
 
     // onPickup: add to inventory and destroy the key gameobject
     pickup.onPickup = (other) => {
