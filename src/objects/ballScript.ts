@@ -1,8 +1,5 @@
 import * as THREE from "three";
-import { Vector2 } from "three";
-import { Line2 } from "three/examples/jsm/lines/Line2";
-import { LineGeometry } from "three/examples/jsm/lines/LineGeometry";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial";
+import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import { Input } from "../input";
 import type { PointerInputEvent } from "../input";
@@ -14,7 +11,7 @@ import {
     ScriptComponent,
 } from "../components";
 import { mainCamera } from "../globals";
-import { scene, world } from "../globals";
+import { world } from "../globals";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -92,7 +89,7 @@ export function createBall(
         trajGeometry.setPositions(Array.from(positions));
 
         // try to pick accent color from UI CSS var if available (fallback to hex)
-        
+
         const accentHex = 0xff8800; // orange
         trajMaterial = new LineMaterial({
             color: accentHex,
@@ -115,23 +112,39 @@ export function createBall(
         // keep resolution updated on resize
         const onResize = () => {
             try {
-                trajMaterial?.resolution.set(window.innerWidth, window.innerHeight);
-            } catch {}
+                trajMaterial?.resolution.set(
+                    window.innerWidth,
+                    window.innerHeight,
+                );
+            } catch (err) {
+                console.warn("trajLine onResize failed:", err);
+            }
         };
         window.addEventListener("resize", onResize);
         // store as property for cleanup in dispose handler
-        (trajLine as unknown as { __onResize?: () => void }).__onResize = onResize;
+        (trajLine as unknown as { __onResize?: () => void }).__onResize =
+            onResize;
     }
 
-    function updateTrajectory(position: THREE.Vector3, initialVelocity: THREE.Vector3) {
+    function updateTrajectory(
+        position: THREE.Vector3,
+        initialVelocity: THREE.Vector3,
+    ) {
         if (!trajLine || !trajGeometry) createTrajectoryLine();
         if (!trajLine || !trajGeometry) return;
         const gVec = (() => {
             // try to read world gravity, fallback to -9.81 on Y
             try {
-                const g = (world as { gravity?: { x: number; y: number; z: number } })?.gravity;
+                const g = (
+                    world as { gravity?: { x: number; y: number; z: number } }
+                )?.gravity;
                 if (g) return new THREE.Vector3(g.x, g.y, g.z);
-            } catch {}
+            } catch (err) {
+                console.warn(
+                    "updateTrajectory: read world.gravity failed:",
+                    err,
+                );
+            }
             return new THREE.Vector3(0, -9.81, 0);
         })();
 
@@ -216,7 +229,8 @@ export function createBall(
         const impulseDir = dragNow.clone().negate().normalize();
         const impulse = impulseDir.clone().multiplyScalar(strength);
         // velocity estimate: v0 = impulse / mass (rbComp.mass previously set)
-        const mass = (rbComp.mass && typeof rbComp.mass === "number") ? rbComp.mass : 1;
+        const mass =
+            rbComp.mass && typeof rbComp.mass === "number" ? rbComp.mass : 1;
         const v0 = impulse.clone().divideScalar(mass);
         // world position to start from (ball current world position)
         const startPos = meshComp.mesh.getWorldPosition(new THREE.Vector3());
@@ -275,18 +289,29 @@ export function createBall(
             hideTrajectory();
             if (trajLine) {
                 // remove resize listener
-                const onResize = (trajLine as unknown as { __onResize?: () => void }).__onResize;
+                const onResize = (
+                    trajLine as unknown as { __onResize?: () => void }
+                ).__onResize;
                 if (onResize) window.removeEventListener("resize", onResize);
                 scene.remove(trajLine);
                 trajLine = null;
             }
             trajGeometry = null;
             if (trajMaterial) {
-                try { trajMaterial.dispose?.(); } catch {}
+                try {
+                    trajMaterial.dispose?.();
+                } catch (err) {
+                    console.warn("trajMaterial.dispose failed:", err);
+                }
                 trajMaterial = null;
             }
-        } catch {}
+        } catch (err) {
+            console.warn("onDispose failed:", err);
+        }
     };
 
     return ball;
 }
+
+// moved three/examples type declarations to an ambient .d.ts file at:
+// src/types/three-line2.d.ts
