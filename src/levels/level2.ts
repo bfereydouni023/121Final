@@ -13,7 +13,6 @@ import { createGround } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
 import { RespawnSystem } from "../respawnSystem";
-import { Inventory } from "../inventory";
 
 export class Level2 extends BaseLevel {
     private readonly baseOffset = { x: 500, y: 0, z: -15 } as const;
@@ -80,8 +79,7 @@ export class Level2 extends BaseLevel {
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const key = this.createKeyObject();
-        this.gameObjects.set(key.name, key);
+        this.registerRespawnable("gold_key", () => this.createKeyObject());
 
         //Create a Door
         this.doorPosition = new THREE.Vector3(
@@ -89,8 +87,7 @@ export class Level2 extends BaseLevel {
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const door = this.createDoorObject();
-        this.gameObjects.set(door.name, door);
+        this.registerRespawnable("door", () => this.createDoorObject());
 
         //#endregion --------------------------------------------------------
 
@@ -114,34 +111,6 @@ export class Level2 extends BaseLevel {
 
     protected onDeactivate(): void {
         destroyGameObject(getObjectByName("ball")!);
-    }
-
-    reset(): void {
-        // Clear player inventory so keys are not preserved between restarts
-        getSingletonComponent(Inventory).clear();
-
-        // Recreate key and door so destroyed instances return on restart
-        this.replaceCollectibleAndDoor();
-
-        super.reset();
-    }
-
-    private replaceCollectibleAndDoor() {
-        const existingKey = this.gameObjects.get("gold_key");
-        if (existingKey) {
-            destroyGameObject(existingKey);
-            this.gameObjects.delete("gold_key");
-        }
-        const key = this.createKeyObject();
-        this.gameObjects.set(key.name, key);
-
-        const existingDoor = this.gameObjects.get("door");
-        if (existingDoor) {
-            destroyGameObject(existingDoor);
-            this.gameObjects.delete("door");
-        }
-        const door = this.createDoorObject();
-        this.gameObjects.set(door.name, door);
     }
 
     private createKeyObject() {
