@@ -200,6 +200,110 @@ ui.createButton(
     { ariaLabel: "Move Right", style: btnStyle },
 );
 
+//Escape menu: restart + light/dark toggle
+const escapeMenuOverlay = document.createElement("div");
+escapeMenuOverlay.style.position = "fixed";
+escapeMenuOverlay.style.left = "0";
+escapeMenuOverlay.style.top = "0";
+escapeMenuOverlay.style.width = "100%";
+escapeMenuOverlay.style.height = "100%";
+escapeMenuOverlay.style.display = "none";
+escapeMenuOverlay.style.alignItems = "center";
+escapeMenuOverlay.style.justifyContent = "center";
+escapeMenuOverlay.style.background = "rgba(0,0,0,0.6)";
+escapeMenuOverlay.style.backdropFilter = "blur(6px)";
+escapeMenuOverlay.style.zIndex = "30000";
+escapeMenuOverlay.style.pointerEvents = "auto";
+
+const escapeMenuPanel = document.createElement("div");
+escapeMenuPanel.style.minWidth = "280px";
+escapeMenuPanel.style.maxWidth = "420px";
+escapeMenuPanel.style.background = "rgba(17,24,39,0.92)";
+escapeMenuPanel.style.color = "#f8fafc";
+escapeMenuPanel.style.padding = "24px";
+escapeMenuPanel.style.borderRadius = "14px";
+escapeMenuPanel.style.display = "flex";
+escapeMenuPanel.style.flexDirection = "column";
+escapeMenuPanel.style.gap = "16px";
+escapeMenuPanel.style.boxShadow = "0 24px 60px rgba(0,0,0,0.45)";
+
+const escapeMenuTitle = document.createElement("div");
+escapeMenuTitle.textContent = "Pause Menu";
+escapeMenuTitle.style.fontSize = "1.5rem";
+escapeMenuTitle.style.fontWeight = "bold";
+
+const escapeMenuDescription = document.createElement("div");
+escapeMenuDescription.textContent = "Press Escape again to resume.";
+escapeMenuDescription.style.opacity = "0.85";
+escapeMenuDescription.style.fontSize = "0.95rem";
+
+const escapeMenuButtons = document.createElement("div");
+escapeMenuButtons.style.display = "flex";
+escapeMenuButtons.style.flexDirection = "column";
+escapeMenuButtons.style.gap = "12px";
+
+//restart current level button
+const restartButton = ui.createButton(
+    "btn-restart-level",
+    "Restart Level",
+    () => {
+        levelManager.resetCurrentLevel();
+        escapeMenuOverlay.style.display = "none";
+        isEscapeMenuOpen = false;
+    },
+    {
+        ariaLabel: "Restart current level",
+        style: {
+            width: "100%",
+            fontSize: "16px",
+            fontWeight: "bold",
+            justifyContent: "center",
+        },
+    },
+    escapeMenuButtons,
+);
+restartButton.style.display = "flex";
+
+const modeToggleButton = ui.createModeToggleButton(escapeMenuButtons);
+modeToggleButton.style.alignSelf = "center";
+
+ui.onThemeChange((_mode, colors) => {
+    escapeMenuPanel.style.background = colors.background;
+    escapeMenuPanel.style.color = colors.foreground;
+    escapeMenuPanel.style.border = `1px solid ${colors.border}`;
+    escapeMenuPanel.style.boxShadow = colors.shadow;
+    escapeMenuTitle.style.color = colors.foreground;
+    escapeMenuDescription.style.color = colors.foreground;
+    restartButton.style.background = colors.buttonBg;
+    restartButton.style.color = colors.buttonText;
+    restartButton.style.border = `1px solid ${colors.border}`;
+    (restartButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+});
+
+escapeMenuPanel.append(
+    escapeMenuTitle,
+    escapeMenuDescription,
+    escapeMenuButtons,
+);
+escapeMenuOverlay.appendChild(escapeMenuPanel);
+document.body.appendChild(escapeMenuOverlay);
+
+let isEscapeMenuOpen = false;
+function setEscapeMenuVisible(visible: boolean) {
+    escapeMenuOverlay.style.display = visible ? "flex" : "none";
+    isEscapeMenuOpen = visible;
+}
+
+escapeMenuOverlay.addEventListener("click", (event) => {
+    if (event.target === escapeMenuOverlay) setEscapeMenuVisible(false);
+});
+
+window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        setEscapeMenuVisible(!isEscapeMenuOpen);
+    }
+});
+
 // Todo: move camera setup to a helper function
 setupCamera();
 

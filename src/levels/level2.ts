@@ -16,6 +16,12 @@ import { createDoor } from "../objects/doorScript";
 import { RespawnSystem } from "../respawnSystem";
 
 export class Level2 extends BaseLevel {
+    private readonly baseOffset = { x: 500, y: 0, z: -15 } as const;
+    private readonly tileSize = 50;
+
+    private keyPosition = new THREE.Vector3();
+    private doorPosition = new THREE.Vector3();
+
     constructor() {
         super();
         this.id = Level2.name;
@@ -26,9 +32,9 @@ export class Level2 extends BaseLevel {
         //#region Create T-shaped ground using modular tiles -----------------
         // grid to create (gx, gy) relative to a base offset in world space
         // T shape: center (0,0) with stem at (0,1) and arms at (1,1) and (-1,1)
-        const tileSize = 15; // world units per tile (adjustable)
+        const tileSize = this.tileSize; // world units per tile (adjustable)
         const tileHeight = 5; // thickness of each tile
-        const baseOffset = { x: 500, y: 0, z: -15 }; // match previous ground placement
+        const baseOffset = this.baseOffset; // match previous ground placement
 
         const coords: Array<[number, number]> = [
             [0, 0],
@@ -95,21 +101,13 @@ export class Level2 extends BaseLevel {
         //#region  Create simple level --------------------------------------
 
         // Create a Key centered on the tile at grid coords [2,3]
-        const keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
-        const key = createKey(keyPosition, "gold_key");
+        this.keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
+        this.registerRespawnable("gold_key", () => this.createKeyObject());
 
-        this.gameObjects.set(key.name, key);
 
         // Create a Door at grid coords [-1,1]
-        const doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
-        const door = createDoor(
-            doorPosition,
-            new THREE.Vector3(tileSize - 0.5, 5, 1),
-            "gold_key",
-            90,
-        );
-
-        this.gameObjects.set(door.name, door);
+        this.doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
+        this.registerRespawnable("door", () => this.createDoorObject());
 
         //#endregion --------------------------------------------------------
 
@@ -133,5 +131,22 @@ export class Level2 extends BaseLevel {
 
     protected onDeactivate(): void {
         destroyGameObject(getObjectByName("ball")!);
+    }
+
+    private createKeyObject() {
+        const key = createKey(this.keyPosition.clone(), "gold_key");
+        const ball = getObjectByName("ball");
+        if (ball) {
+            key.getComponent(PickupComponent)?.addTriggerObject(ball);
+        }
+        return key;
+    }
+
+    private createDoorObject() {
+        return createDoor(
+            this.doorPosition.clone(),
+            new THREE.Vector3(4, 5, 1),
+            "gold_key",
+        );
     }
 }
