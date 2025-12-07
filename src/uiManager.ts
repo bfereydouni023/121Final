@@ -64,7 +64,7 @@ export function createUIManager(
     // Standardized HUD color palettes for light/dark mode
     const HUD_THEMES: Record<HUDMode, HUDColors> = {
         light: {
-            background: "rgba(243,244,246,0.95)",
+            background: "rgba(229,231,235,0.95)",
             foreground: "#111827",
             accent: "#0ea5a4", // teal-500
             buttonBg: "rgba(255,255,255,0.95)",
