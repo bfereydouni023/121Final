@@ -220,8 +220,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         const impulseDir = dragNow.clone().negate().normalize();
         const impulse = impulseDir.clone().multiplyScalar(strength);
         // velocity estimate: v0 = impulse / mass (rbComp.mass previously set)
-        const mass =
-            rbComp.mass && typeof rbComp.mass === "number" ? rbComp.mass : 1;
+        const mass = 1;
         const v0 = impulse.clone().divideScalar(mass);
         // world position to start from (ball current world position)
         const startPos = meshComp.mesh.getWorldPosition(new THREE.Vector3());
