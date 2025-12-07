@@ -74,8 +74,11 @@ export function createGround(gx: number, gy: number, opts: GroundOptions = {}) {
     // place rigidbody to match the TransformComponent position
     try {
         rb.rigidbody.setTranslation({ x: worldX, y: worldY, z: worldZ }, true);
-    } catch {
-        // some runtimes may use setTranslation or setTranslationRaw; ignore if not available
+    } catch (err) {
+        console.debug(
+            "[createGround] setTranslation not supported or failed:",
+            err,
+        );
     }
     // collider half-extents = half of tileSize / height
     rb.addCollider(
@@ -99,7 +102,7 @@ export function createGroundBatch(
     opts: GroundOptions = {},
 ) {
     const createdTiles = coords.map(([gx, gy]) => createGround(gx, gy, opts));
-    let wallGOs: Array<any> = [];
+    let wallGOs: Array<ReturnType<typeof createGameObject>> = [];
 
     if (opts.buildWalls && coords.length > 0) {
         console.log("Building perimeter walls for ground batch");
@@ -113,7 +116,10 @@ export function createGroundBatch(
 /**
  * Internal helper: build four walls around the bounding rect of the provided tile coords.
  */
-function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOptions) {
+function buildPerimeterWalls(
+    coords: Array<[number, number]>,
+    opts: GroundOptions,
+) {
     const tileSize = opts.tileSize ?? 50;
     const wallHeight = opts.wallHeight ?? 5;
     const wallThickness = opts.wallThickness ?? Math.max(0.5, tileSize * 0.1);
@@ -124,10 +130,18 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
 
     // fast lookup for whether a tile exists at grid coord
     const tileSet = new Set<string>(coords.map(([gx, gy]) => `${gx},${gy}`));
-    const createdWalls: Array<any> = [];
+    const createdWalls: Array<ReturnType<typeof createGameObject>> = [];
 
     // helper to create a wall segment (box)
-    function createWallSegment(centerX: number, centerY: number, centerZ: number, sizeX: number, sizeY: number, sizeZ: number, rotationY?: number) {
+    function createWallSegment(
+        centerX: number,
+        centerY: number,
+        centerZ: number,
+        sizeX: number,
+        sizeY: number,
+        sizeZ: number,
+        rotationY?: number,
+    ): ReturnType<typeof createGameObject> {
         const go = createGameObject();
         const tf = go.addComponent(TransformComponent);
         tf.position = { x: centerX, y: centerY, z: centerZ };
@@ -139,7 +153,10 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
         const mesh = new THREE.Mesh(geom, mat);
         mesh.position.set(centerX, centerY, centerZ);
         if (typeof rotationY === "number") {
-            const quat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY);
+            const quat = new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                rotationY,
+            );
             mesh.quaternion.copy(quat);
         }
         scene.add(mesh);
@@ -147,47 +164,62 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
 
         const rb = go.addComponent(RigidbodyComponent);
         rb.rigidbody.setBodyType(
-            wallFixed ? RAPIER.RigidBodyType.Fixed : RAPIER.RigidBodyType.Dynamic,
+            wallFixed
+                ? RAPIER.RigidBodyType.Fixed
+                : RAPIER.RigidBodyType.Dynamic,
             true,
         );
+
+        type QuaternionLike = { x: number; y: number; z: number; w: number };
+        interface RigidbodyExtras {
+            setRotation?: (q: QuaternionLike, wake?: boolean) => void;
+            setRotationFromQuaternion?: (
+                q: THREE.Quaternion,
+                wake?: boolean,
+            ) => void;
+            setTranslation?: (
+                t: { x: number; y: number; z: number },
+                wake?: boolean,
+            ) => void;
+        }
+        const rbExtras = rb.rigidbody as unknown as RigidbodyExtras;
+
         try {
             // set physics body translation then rotation (best-effort)
-            rb.rigidbody.setTranslation({ x: centerX, y: centerY, z: centerZ }, true);
+            if (typeof rbExtras.setTranslation === "function") {
+                rbExtras.setTranslation(
+                    { x: centerX, y: centerY, z: centerZ },
+                    true,
+                );
+            }
+
             if (typeof rotationY === "number") {
-                const quatObj = { x: 0, y: Math.sin(rotationY / 2), z: 0, w: Math.cos(rotationY / 2) };
-                if (typeof (rb.rigidbody as any).setRotation === "function") {
-                    try { (rb.rigidbody as any).setRotation(quatObj, true); } catch {}
+                const quat = new THREE.Quaternion().setFromAxisAngle(
+                    new THREE.Vector3(0, 1, 0),
+                    rotationY,
+                );
+                if (typeof rbExtras.setRotation === "function") {
+                    rbExtras.setRotation(
+                        { x: quat.x, y: quat.y, z: quat.z, w: quat.w },
+                        true,
+                    );
+                } else if (
+                    typeof rbExtras.setRotationFromQuaternion === "function"
+                ) {
+                    rbExtras.setRotationFromQuaternion(quat, true);
                 }
             }
-        } catch {}
+        } catch (err) {
+            console.debug(
+                "[createWallSegment] physics transform apply failed:",
+                err,
+            );
+        }
 
-        rb.addCollider(RAPIER.ColliderDesc.cuboid(sizeX / 2, sizeY / 2, sizeZ / 2), false);
-        return go;
-    }
-
-    // helper to create a visible debug block at corner (small colored box)
-    function createCornerDebugBlock(centerX: number, centerY: number, centerZ: number) {
-        const go = createGameObject();
-        const tf = go.addComponent(TransformComponent);
-        tf.position = { x: centerX, y: centerY, z: centerZ };
-        tf.rotation = { x: 0, y: 0, z: 0, w: 1 };
-
-        const meshComp = go.addComponent(MeshComponent);
-        const size = Math.max(0.2, tileSize * 0.25);
-        const geom = new THREE.BoxGeometry(size, size, size);
-        const mat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.2, roughness: 0.6 });
-        const mesh = new THREE.Mesh(geom, mat);
-        mesh.position.set(centerX, centerY + size / 2, centerZ); // sit on top of ground
-        scene.add(mesh);
-        meshComp.mesh = mesh;
-
-        // small fixed rigidbody so it participates if needed (optional)
-        const rb = go.addComponent(RigidbodyComponent);
-        rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        try {
-            rb.rigidbody.setTranslation({ x: centerX, y: centerY + size / 2, z: centerZ }, true);
-        } catch {}
-        rb.addCollider(RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2), true);
+        rb.addCollider(
+            RAPIER.ColliderDesc.cuboid(sizeX / 2, sizeY / 2, sizeZ / 2),
+            false,
+        );
         return go;
     }
 
@@ -211,7 +243,14 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
             const centerX = worldX;
             const centerZ = topEdgeZ - wallThickness / 2;
             createdWalls.push(
-                createWallSegment(centerX, halfWallY, centerZ, tileSize, wallHeight, wallThickness),
+                createWallSegment(
+                    centerX,
+                    halfWallY,
+                    centerZ,
+                    tileSize,
+                    wallHeight,
+                    wallThickness,
+                ),
             );
         }
 
@@ -220,7 +259,14 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
             const centerX = worldX;
             const centerZ = bottomEdgeZ + wallThickness / 2;
             createdWalls.push(
-                createWallSegment(centerX, halfWallY, centerZ, tileSize, wallHeight, wallThickness),
+                createWallSegment(
+                    centerX,
+                    halfWallY,
+                    centerZ,
+                    tileSize,
+                    wallHeight,
+                    wallThickness,
+                ),
             );
         }
 
@@ -229,7 +275,14 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
             const centerX = rightEdgeX + wallThickness / 2;
             const centerZ = worldZ;
             createdWalls.push(
-                createWallSegment(centerX, halfWallY, centerZ, wallThickness, wallHeight, tileSize),
+                createWallSegment(
+                    centerX,
+                    halfWallY,
+                    centerZ,
+                    wallThickness,
+                    wallHeight,
+                    tileSize,
+                ),
             );
         }
 
@@ -238,17 +291,16 @@ function buildPerimeterWalls(coords: Array<[number, number]>, opts: GroundOption
             const centerX = leftEdgeX - wallThickness / 2;
             const centerZ = worldZ;
             createdWalls.push(
-                createWallSegment(centerX, halfWallY, centerZ, wallThickness, wallHeight, tileSize),
+                createWallSegment(
+                    centerX,
+                    halfWallY,
+                    centerZ,
+                    wallThickness,
+                    wallHeight,
+                    tileSize,
+                ),
             );
         }
-    }
-
-    // detect 90° external corners and place a single visible debug block at each corner
-    const corners = detectRightAngleCorners(coords, tileSize);
-    for (const c of corners) {
-        // place the debug block so it sits on the ground level (half the wall height)
-        const debugY = halfWallY;
-        
     }
 
     return createdWalls;

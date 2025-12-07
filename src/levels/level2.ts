@@ -12,7 +12,7 @@ import {
 import { createGroundBatch } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
-import { createBlock } from "./block";
+//import { createBlock } from "./block";
 import { RespawnSystem } from "../respawnSystem";
 
 export class Level2 extends BaseLevel {
@@ -68,7 +68,7 @@ export class Level2 extends BaseLevel {
         // move any perimeter wall meshes created by createGroundBatch by the same baseOffset
         // (walls are added to the scene with mesh.userData.type === "perimeterWall")
         for (const child of scene.children) {
-            if (child && (child as any).userData?.type === "perimeterWall") {
+            if (child && child.userData?.type === "perimeterWall") {
                 child.position.x += baseOffset.x;
                 child.position.y += baseOffset.y;
                 child.position.z += baseOffset.z;
@@ -93,21 +93,25 @@ export class Level2 extends BaseLevel {
         //#endregion
 
         //#region  Create simple level --------------------------------------
-        
+
         // Create a Key centered on the tile at grid coords [2,3]
         const keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
         const key = createKey(keyPosition, "gold_key");
-        
+
         this.gameObjects.set(key.name, key);
-        
+
         // Create a Door at grid coords [-1,1]
         const doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
-        const door = createDoor(doorPosition, new THREE.Vector3(tileSize - 0.5, 5, 1), "gold_key", 90);
+        const door = createDoor(
+            doorPosition,
+            new THREE.Vector3(tileSize - 0.5, 5, 1),
+            "gold_key",
+            90,
+        );
 
         this.gameObjects.set(door.name, door);
 
         //#endregion --------------------------------------------------------
-
 
         // Simple light
         const light = new THREE.DirectionalLight(0xffffff, 1);

@@ -72,18 +72,37 @@ export function createDoor(
         false,
     );
 
+    // Define a minimal typing for optional Rapier extensions we may encounter.
+    type QuaternionLike = { x: number; y: number; z: number; w: number };
+    interface RigidbodyExtras {
+        setRotation?: (q: QuaternionLike, wake?: boolean) => void;
+        setRotationFromQuaternion?: (
+            q: THREE.Quaternion,
+            wake?: boolean,
+        ) => void;
+        setTranslation?: (
+            t: { x: number; y: number; z: number },
+            wake?: boolean,
+        ) => void;
+    }
+
+    const rbExtras = rb.rigidbody as unknown as RigidbodyExtras;
+
     // try to apply rotation to the physics body (best-effort)
     try {
-        // Rapier JS 3D typically accepts a quaternion-like object; wrap in try/catch
-        // If the runtime expects a different API this will silently fail.
-        // prefer setRotation if available, otherwise attempt setTranslation + setRotation-like call
-        if (typeof (rb.rigidbody as any).setRotation === "function") {
-            (rb.rigidbody as any).setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w }, true);
-        } else if (typeof (rb.rigidbody as any).setRotationFromQuaternion === "function") {
-            (rb.rigidbody as any).setRotationFromQuaternion(quat, true);
-        } else {
-            // fallback no-op; many runtimes position colliders from the GameObject transform on next step
-            (rb.rigidbody as any).setTranslation({ x: position.x, y: position.y, z: position.z }, true);
+        if (typeof rbExtras.setRotation === "function") {
+            rbExtras.setRotation(
+                { x: quat.x, y: quat.y, z: quat.z, w: quat.w },
+                true,
+            );
+        } else if (typeof rbExtras.setRotationFromQuaternion === "function") {
+            rbExtras.setRotationFromQuaternion(quat, true);
+        } else if (typeof rbExtras.setTranslation === "function") {
+            // fallback no-op for rotation: ensure translation is correct
+            rbExtras.setTranslation(
+                { x: position.x, y: position.y, z: position.z },
+                true,
+            );
         }
     } catch (err) {
         // ignore physics rotation errors

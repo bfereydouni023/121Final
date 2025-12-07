@@ -83,7 +83,7 @@ export function createGoal(
         }
     };
 
-    script.onCollisionExit = (other) => {
+    script.onCollisionExit = () => {
         // no-op for now; kept for symmetry and future use
     };
 
