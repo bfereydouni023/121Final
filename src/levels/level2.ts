@@ -17,7 +17,7 @@ import { RespawnSystem } from "../respawnSystem";
 
 export class Level2 extends BaseLevel {
     private readonly baseOffset = { x: 500, y: 0, z: -15 } as const;
-    private readonly tileSize = 50;
+    private readonly tileSize = 20;
 
     private keyPosition = new THREE.Vector3();
     private doorPosition = new THREE.Vector3();
@@ -104,7 +104,6 @@ export class Level2 extends BaseLevel {
         this.keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
         this.registerRespawnable("gold_key", () => this.createKeyObject());
 
-
         // Create a Door at grid coords [-1,1]
         this.doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
         this.registerRespawnable("door", () => this.createDoorObject());
@@ -145,8 +144,9 @@ export class Level2 extends BaseLevel {
     private createDoorObject() {
         return createDoor(
             this.doorPosition.clone(),
-            new THREE.Vector3(4, 5, 1),
+            new THREE.Vector3(this.tileSize - 0.5, 5, 1),
             "gold_key",
+            90,
         );
     }
 }

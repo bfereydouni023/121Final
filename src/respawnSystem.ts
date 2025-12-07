@@ -31,6 +31,8 @@ export class RespawnSystem implements SingletonComponent {
     respawn(): void {
         if (!this.ball) return;
         const ballTransform = this.ball.getComponent(TransformComponent)!;
+        if (!ballTransform) return;
+        
         // Respawn the ball at the respawn point
         console.log(ballTransform.position.y);
         ballTransform.position = { ...this.respawnPoint.position };
