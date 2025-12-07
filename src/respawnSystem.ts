@@ -24,11 +24,6 @@ export class RespawnSystem implements SingletonComponent {
     }
 
     physicsUpdate(_deltaTime: number): void {
-        // if (!this.ball) {
-        //     this.ball = getObjectByName("ball");
-        // }
-        // if (!this.ball) return;
-        // const ballTransform = this.ball.getComponent(TransformComponent)!;
         const ball = this.refreshBall();
         if (!ball) return;
         const ballTransform = ball.getComponent(TransformComponent)!;
@@ -39,8 +34,6 @@ export class RespawnSystem implements SingletonComponent {
     }
 
     respawn(): void {
-        // if (!this.ball) return;
-        // const ballTransform = this.ball.getComponent(TransformComponent)!;
         const ball = this.refreshBall();
         if (!ball) return;
         const ballTransform = ball.getComponent(TransformComponent)!;
