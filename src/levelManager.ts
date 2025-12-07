@@ -2,6 +2,7 @@ import { FollowComponent, TransformComponent } from "./components";
 import { cameraMapViewTransform, mainCamera } from "./globals";
 import { Level1 } from "./levels/level1";
 import { Level2 } from "./levels/level2";
+import { Level3 } from "./levels/level3";
 import { getSingletonComponent } from "./objectSystem";
 import { SerializationSystem } from "./serialization";
 import { TweenManager } from "./tweenManager";
@@ -15,6 +16,7 @@ export class LevelManager implements SingletonComponent {
     create(): void {
         this.registerLevel(new Level1());
         this.registerLevel(new Level2());
+        this.registerLevel(new Level3());
     }
 
     private registerLevel(level: Level): void {
