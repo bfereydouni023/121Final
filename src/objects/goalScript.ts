@@ -77,25 +77,32 @@ export function createGoal(
             currentIndex?: number;
             levels?: Array<{ id?: string }>;
         };
-        const lmRaw = getSingletonComponent(LevelManager) as unknown as LMLike | undefined;
+        const lmRaw = getSingletonComponent(LevelManager) as unknown as
+            | LMLike
+            | undefined;
 
         let currentId: string | undefined = undefined;
         if (lmRaw) {
             currentId = lmRaw.current?.id;
             // fallback to index-based lookup
-            if (!currentId && typeof lmRaw.currentIndex === "number" && Array.isArray(lmRaw.levels)) {
+            if (
+                !currentId &&
+                typeof lmRaw.currentIndex === "number" &&
+                Array.isArray(lmRaw.levels)
+            ) {
                 currentId = lmRaw.levels[lmRaw.currentIndex]?.id;
             }
         }
 
         // last-resort: check a global hint if present
-        const winHint = (window as unknown) as { currentLevelId?: string };
+        const winHint = window as unknown as { currentLevelId?: string };
         currentId = currentId ?? winHint.currentLevelId;
 
         let nextId: string | undefined;
         if (currentId === Level1.name) nextId = Level2.name;
         else if (currentId === Level2.name) nextId = Level3.name;
-        else if (currentId === Level3.name) nextId = Level1.name; // wrap to Level1
+        else if (currentId === Level3.name)
+            nextId = Level1.name; // wrap to Level1
         else nextId = Level2.name; // default fallback
 
         // request deferred level swap outside physics loop
@@ -104,7 +111,13 @@ export function createGoal(
                 detail: { id: nextId },
             }),
         );
-        console.debug("[Goal] requested deferred swap to", nextId, "(detected current:", currentId, ")");
+        console.debug(
+            "[Goal] requested deferred swap to",
+            nextId,
+            "(detected current:",
+            currentId,
+            ")",
+        );
 
         // visual feedback
         try {

@@ -43,8 +43,7 @@ export class Level1 extends BaseLevel {
             [0, 5],
             [0, 6],
             [0, 7],
-            [0, 8]
-
+            [0, 8],
         ];
 
         // create tiles + perimeter walls in local (grid) coordinates
@@ -101,8 +100,6 @@ export class Level1 extends BaseLevel {
         const key = createKey(keyPosition, "gold_key");
 
         this.gameObjects.set(key.name, key);
-
-
 
         //#endregion --------------------------------------------------------
 
