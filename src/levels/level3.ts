@@ -39,6 +39,7 @@ export class Level3 extends BaseLevel {
         const coords: Array<[number, number]> = [
             [0, 0],
             [0, 1],
+            [1, 1],
         ];
 
         // create tiles + perimeter walls in local (grid) coordinates
@@ -107,7 +108,7 @@ export class Level3 extends BaseLevel {
     }
 
     protected onActivate(): void {
-        const startPosition = new THREE.Vector3(500, 0, -15);
+        const startPosition = new THREE.Vector3(1000, 0, -15);
         const ball = createBall(scene, startPosition);
         getSingletonComponent(RespawnSystem).respawnPoint.position =
             startPosition;
