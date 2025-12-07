@@ -12,16 +12,26 @@ export class RespawnSystem implements SingletonComponent {
     public killPlaneHeight: number = -5;
     private ball: GameObject | null = null;
 
+    // Always re-query for the ball so level transitions or scene swaps don't leave
+    // us holding a stale reference when the player restarts or respawns.
+    private refreshBall(): GameObject | null {
+        this.ball = getObjectByName("ball");
+        return this.ball;
+    }
+
     create(): void {
         // Initial setup if needed
     }
 
     physicsUpdate(_deltaTime: number): void {
-        if (!this.ball) {
-            this.ball = getObjectByName("ball");
-        }
-        if (!this.ball) return;
-        const ballTransform = this.ball.getComponent(TransformComponent)!;
+        // if (!this.ball) {
+        //     this.ball = getObjectByName("ball");
+        // }
+        // if (!this.ball) return;
+        // const ballTransform = this.ball.getComponent(TransformComponent)!;
+        const ball = this.refreshBall();
+        if (!ball) return;
+        const ballTransform = ball.getComponent(TransformComponent)!;
         if (!ballTransform) return;
         if (ballTransform.position.y < this.killPlaneHeight) {
             this.respawn();
@@ -29,8 +39,11 @@ export class RespawnSystem implements SingletonComponent {
     }
 
     respawn(): void {
-        if (!this.ball) return;
-        const ballTransform = this.ball.getComponent(TransformComponent)!;
+        // if (!this.ball) return;
+        // const ballTransform = this.ball.getComponent(TransformComponent)!;
+        const ball = this.refreshBall();
+        if (!ball) return;
+        const ballTransform = ball.getComponent(TransformComponent)!;
         if (!ballTransform) return;
 
         // Respawn the ball at the respawn point
@@ -38,11 +51,13 @@ export class RespawnSystem implements SingletonComponent {
         ballTransform.position = { ...this.respawnPoint.position };
         ballTransform.rotation = { ...this.respawnPoint.rotation };
         ballTransform.scale = { ...this.respawnPoint.scale };
-        this.ball
-            .getComponent(RigidbodyComponent)
-            ?.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        this.ball
-            .getComponent(RigidbodyComponent)
-            ?.rigidbody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        ball.getComponent(RigidbodyComponent)?.rigidbody.setLinvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
+        ball.getComponent(RigidbodyComponent)?.rigidbody.setAngvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
     }
 }
