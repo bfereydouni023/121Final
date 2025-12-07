@@ -33,6 +33,8 @@ export class BaseLevel implements Level {
         getSingletonComponent(RespawnSystem).respawn();
     }
 
+    
+
     protected createObjects(): void {}
     protected onActivate(): void {}
     protected onDeactivate(): void {}

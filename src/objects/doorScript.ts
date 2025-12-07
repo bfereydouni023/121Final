@@ -13,24 +13,53 @@ import { Inventory } from "../inventory";
 
 /**
  * Create a door that opens when the player has a required key in inventory.
+ * - position: world position
+ * - size: dimensions
  * - keyId: id required to open (e.g. "gold_key")
+ * - rotationDeg: optional rotation in degrees. Can be a single number (Y axis) or an object { x, y, z } in degrees.
  * - onOpen: optional callback when door opens
  */
 export function createDoor(
     position: THREE.Vector3,
     size: THREE.Vector3 = new THREE.Vector3(1, 2.5, 0.2),
     keyId: string = "gold_key",
+    rotationDeg: number | { x?: number; y?: number; z?: number } = 0,
     onOpen?: (doorGO: ReturnType<typeof createDoor>) => void,
 ) {
     const go = createGameObject("door");
     const tf = go.addComponent(TransformComponent);
+
+    // normalize rotationDeg into x,y,z in degrees
+    let rx = 0,
+        ry = 0,
+        rz = 0;
+    if (typeof rotationDeg === "number") {
+        ry = rotationDeg;
+    } else if (rotationDeg && typeof rotationDeg === "object") {
+        rx = rotationDeg.x ?? 0;
+        ry = rotationDeg.y ?? 0;
+        rz = rotationDeg.z ?? 0;
+    }
+
+    // convert degrees to quaternion
+    const euler = new THREE.Euler(
+        THREE.MathUtils.degToRad(rx),
+        THREE.MathUtils.degToRad(ry),
+        THREE.MathUtils.degToRad(rz),
+        "XYZ",
+    );
+    const quat = new THREE.Quaternion().setFromEuler(euler);
+
     tf.position = { x: position.x, y: position.y, z: position.z };
-    tf.rotation = { x: 0, y: 0, z: 0, w: 1 };
+    tf.rotation = { x: quat.x, y: quat.y, z: quat.z, w: quat.w };
 
     const meshComp = go.addComponent(MeshComponent);
     const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
     const mat = new THREE.MeshStandardMaterial({ color: 0x663300 });
     const mesh = new THREE.Mesh(geom, mat);
+    // set visual transform immediately so mesh matches the GameObject transform
+    mesh.position.set(position.x, position.y, position.z);
+    mesh.quaternion.set(quat.x, quat.y, quat.z, quat.w);
     scene.add(mesh);
     meshComp.mesh = mesh;
 
@@ -42,6 +71,24 @@ export function createDoor(
         RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
         false,
     );
+
+    // try to apply rotation to the physics body (best-effort)
+    try {
+        // Rapier JS 3D typically accepts a quaternion-like object; wrap in try/catch
+        // If the runtime expects a different API this will silently fail.
+        // prefer setRotation if available, otherwise attempt setTranslation + setRotation-like call
+        if (typeof (rb.rigidbody as any).setRotation === "function") {
+            (rb.rigidbody as any).setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w }, true);
+        } else if (typeof (rb.rigidbody as any).setRotationFromQuaternion === "function") {
+            (rb.rigidbody as any).setRotationFromQuaternion(quat, true);
+        } else {
+            // fallback no-op; many runtimes position colliders from the GameObject transform on next step
+            (rb.rigidbody as any).setTranslation({ x: position.x, y: position.y, z: position.z }, true);
+        }
+    } catch (err) {
+        // ignore physics rotation errors
+        console.debug("[Door] physics rotation apply failed:", err);
+    }
 
     const script = go.addComponent(ScriptComponent);
 
@@ -78,6 +125,7 @@ export function createDoor(
         const inv = getSingletonComponent(Inventory);
         if (inv.hasItem(keyId)) {
             // optionally consume the key
+            console.log(`[Door] player has key '${keyId}', opening door`);
             inv.removeItem(keyId, 1);
             openDoor();
         } else {

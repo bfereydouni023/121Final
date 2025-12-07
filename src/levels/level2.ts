@@ -9,9 +9,10 @@ import {
     getObjectByName,
     getSingletonComponent,
 } from "../objectSystem";
-import { createGround } from "../objects/groundScript";
+import { createGroundBatch } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
+import { createBlock } from "./block";
 import { RespawnSystem } from "../respawnSystem";
 
 export class Level2 extends BaseLevel {
@@ -25,7 +26,7 @@ export class Level2 extends BaseLevel {
         //#region Create T-shaped ground using modular tiles -----------------
         // grid to create (gx, gy) relative to a base offset in world space
         // T shape: center (0,0) with stem at (0,1) and arms at (1,1) and (-1,1)
-        const tileSize = 50; // world units per tile (adjustable)
+        const tileSize = 15; // world units per tile (adjustable)
         const tileHeight = 5; // thickness of each tile
         const baseOffset = { x: 500, y: 0, z: -15 }; // match previous ground placement
 
@@ -34,62 +35,79 @@ export class Level2 extends BaseLevel {
             [0, 1],
             [1, 1],
             [-1, 1],
+            [2, 1],
+            [-2, 1],
+            [2, 2],
+            [-2, 2],
+            [2, 3],
+            [-2, 3],
+            [1, 3],
+            [0, 3],
         ];
 
-        for (const [gx, gy] of coords) {
-            const go = createGround(gx, gy, {
-                tileSize,
-                height: tileHeight,
-                color: 0x808080,
-            });
-            // apply base offset so grid is positioned where the previous large ground was
+        // create tiles + perimeter walls in local (grid) coordinates
+        const created = createGroundBatch(coords, {
+            tileSize,
+            height: tileHeight,
+            color: 0x808080,
+            buildWalls: true,
+            wallHeight: 5,
+            wallThickness: 1,
+            wallColor: 0x303030,
+        });
+
+        // apply baseOffset to the created tile GameObjects so they sit at the desired world location
+        for (const go of created) {
             const tf = go.getComponent(TransformComponent)!;
             tf.position.x += baseOffset.x;
-            tf.position.y += baseOffset.y; // keep same vertical offset used in level
+            tf.position.y += baseOffset.y;
             tf.position.z += baseOffset.z;
-
             this.gameObjects.set(go.name, go);
+        }
+
+        // move any perimeter wall meshes created by createGroundBatch by the same baseOffset
+        // (walls are added to the scene with mesh.userData.type === "perimeterWall")
+        for (const child of scene.children) {
+            if (child && (child as any).userData?.type === "perimeterWall") {
+                child.position.x += baseOffset.x;
+                child.position.y += baseOffset.y;
+                child.position.z += baseOffset.z;
+            }
         }
 
         //#endregion --------------------------------------------------------
 
+        // helper: grid (gx,gy) -> world position (centers tile). Y is top surface (baseOffset.y).
+        const gridToWorld = (gx: number, gy: number, yOffset = 1) =>
+            new THREE.Vector3(
+                baseOffset.x + gx * tileSize,
+                baseOffset.y + yOffset,
+                baseOffset.z - gy * tileSize,
+            );
+
         //#region  Create the goal -------------------------------------------
-        const goalPosition = new THREE.Vector3(
-            baseOffset.x + 0,
-            baseOffset.y + 3,
-            // place goal near the far end of the tiled ground (approx)
-            baseOffset.z - tileSize * 2 + 6,
-        ); // near far end of ground
+        const goalPosition = gridToWorld(-2, 3, 1); // example using helper
         const goalSize = new THREE.Vector3(4, 4, 4);
         const goal = createGoal(scene, goalPosition, goalSize);
         this.gameObjects.set(goal.name, goal);
         //#endregion
 
         //#region  Create simple level --------------------------------------
-
-        //Create a Key
-        const keyPosition = new THREE.Vector3(
-            baseOffset.x + 0,
-            baseOffset.y + 1,
-            baseOffset.z - tileSize * 1 + 6,
-        );
+        
+        // Create a Key centered on the tile at grid coords [2,3]
+        const keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
         const key = createKey(keyPosition, "gold_key");
+        
         this.gameObjects.set(key.name, key);
+        
+        // Create a Door at grid coords [-1,1]
+        const doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
+        const door = createDoor(doorPosition, new THREE.Vector3(tileSize - 0.5, 5, 1), "gold_key", 90);
 
-        //Create a Door
-        const doorPosition = new THREE.Vector3(
-            baseOffset.x - 10,
-            baseOffset.y + 1,
-            baseOffset.z - tileSize * 1 + 6,
-        );
-        const door = createDoor(
-            doorPosition,
-            new THREE.Vector3(4, 5, 1),
-            "gold_key",
-        );
         this.gameObjects.set(door.name, door);
 
         //#endregion --------------------------------------------------------
+
 
         // Simple light
         const light = new THREE.DirectionalLight(0xffffff, 1);

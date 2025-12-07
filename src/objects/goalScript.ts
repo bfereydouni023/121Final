@@ -53,51 +53,38 @@ export function createGoal(
     // add collider as sensor (second param `true` indicates sensor in this project convention)
     rb.addCollider(
         RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
-        true,
+        false,
     );
 
-    // behavior: check each physics tick whether the ball is inside the goal box
+    // behavior: use collision callbacks instead of scanning the scene each physics tick
     const script = goal.addComponent(ScriptComponent);
     let triggered = false;
-    script.onPhysicsUpdate = () => {
+
+    script.onCollisionEnter = (other) => {
         if (triggered) return;
+        // match doorScript convention: other.name === "ball"
+        if (!other || other.name !== "ball") return;
 
-        // find the ball visually in the scene
-        let ballObj: THREE.Object3D | null = null;
-        scene.traverse((o) => {
-            if (ballObj) return;
-            const ud = o.userData;
-            if (ud && ud.type === "ball") ballObj = o;
-        });
-        if (!ballObj) return;
+        triggered = true;
 
-        // compute goal box and test containment
-        const box = new THREE.Box3().setFromObject(m.mesh);
-        const ballPos = (ballObj as THREE.Object3D).getWorldPosition(
-            new THREE.Vector3(),
+        // request deferred level swap outside physics loop
+        window.dispatchEvent(
+            new CustomEvent("request:level-swap", {
+                detail: { id: Level2.name },
+            }),
         );
-        if (box.containsPoint(ballPos)) {
-            triggered = true;
-            // dispatch a generic event so UI / main can listen and transition to a victory screen
-            // window.dispatchEvent(
-            //     new CustomEvent("game:victory", {
-            //         detail: { goalId: goal.id },
-            //     }),
-            // );
+        console.debug("[Goal] requested deferred swap to", Level2.name);
 
-            // Do NOT call swapToLevel directly from the physics step.
-            // Instead request a deferred swap handled by main.ts so the swap runs outside the physics loop.
-            window.dispatchEvent(
-                new CustomEvent("request:level-swap", {
-                    detail: { id: Level2.name },
-                }),
-            );
-            console.debug("[Goal] requested deferred swap to", Level2.name);
-
-            // optional: visual feedback
+        // visual feedback
+        try {
             (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-            //onsole.log("[Goal] victory triggered for goal", goal.id);
+        } catch (err) {
+            console.debug("[Goal] visual feedback failed", err);
         }
+    };
+
+    script.onCollisionExit = (other) => {
+        // no-op for now; kept for symmetry and future use
     };
 
     // cleanup if system supports disposal

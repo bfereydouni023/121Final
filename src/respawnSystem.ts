@@ -22,6 +22,7 @@ export class RespawnSystem implements SingletonComponent {
         }
         if (!this.ball) return;
         const ballTransform = this.ball.getComponent(TransformComponent)!;
+        if (!ballTransform) return;
         if (ballTransform.position.y < this.killPlaneHeight) {
             this.respawn();
         }
