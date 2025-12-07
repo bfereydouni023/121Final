@@ -13,8 +13,15 @@ import { createGround } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
 import { createDoor } from "../objects/doorScript";
 import { RespawnSystem } from "../respawnSystem";
+import { Inventory } from "../inventory";
 
 export class Level2 extends BaseLevel {
+    private readonly baseOffset = { x: 500, y: 0, z: -15 } as const;
+    private readonly tileSize = 50;
+
+    private keyPosition = new THREE.Vector3();
+    private doorPosition = new THREE.Vector3();
+
     constructor() {
         super();
         this.id = Level2.name;
@@ -25,9 +32,9 @@ export class Level2 extends BaseLevel {
         //#region Create T-shaped ground using modular tiles -----------------
         // grid to create (gx, gy) relative to a base offset in world space
         // T shape: center (0,0) with stem at (0,1) and arms at (1,1) and (-1,1)
-        const tileSize = 50; // world units per tile (adjustable)
+        const tileSize = this.tileSize; // world units per tile (adjustable)
         const tileHeight = 5; // thickness of each tile
-        const baseOffset = { x: 500, y: 0, z: -15 }; // match previous ground placement
+        const baseOffset = this.baseOffset; // match previous ground placement
 
         const coords: Array<[number, number]> = [
             [0, 0],
@@ -68,25 +75,21 @@ export class Level2 extends BaseLevel {
         //#region  Create simple level --------------------------------------
 
         //Create a Key
-        const keyPosition = new THREE.Vector3(
+        this.keyPosition = new THREE.Vector3(
             baseOffset.x + 0,
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const key = createKey(keyPosition, "gold_key");
+        const key = this.createKeyObject();
         this.gameObjects.set(key.name, key);
 
         //Create a Door
-        const doorPosition = new THREE.Vector3(
+        this.doorPosition = new THREE.Vector3(
             baseOffset.x - 10,
             baseOffset.y + 1,
             baseOffset.z - tileSize * 1 + 6,
         );
-        const door = createDoor(
-            doorPosition,
-            new THREE.Vector3(4, 5, 1),
-            "gold_key",
-        );
+        const door = this.createDoorObject();
         this.gameObjects.set(door.name, door);
 
         //#endregion --------------------------------------------------------
@@ -111,5 +114,50 @@ export class Level2 extends BaseLevel {
 
     protected onDeactivate(): void {
         destroyGameObject(getObjectByName("ball")!);
+    }
+
+    reset(): void {
+        // Clear player inventory so keys are not preserved between restarts
+        getSingletonComponent(Inventory).clear();
+
+        // Recreate key and door so destroyed instances return on restart
+        this.replaceCollectibleAndDoor();
+
+        super.reset();
+    }
+
+    private replaceCollectibleAndDoor() {
+        const existingKey = this.gameObjects.get("gold_key");
+        if (existingKey) {
+            destroyGameObject(existingKey);
+            this.gameObjects.delete("gold_key");
+        }
+        const key = this.createKeyObject();
+        this.gameObjects.set(key.name, key);
+
+        const existingDoor = this.gameObjects.get("door");
+        if (existingDoor) {
+            destroyGameObject(existingDoor);
+            this.gameObjects.delete("door");
+        }
+        const door = this.createDoorObject();
+        this.gameObjects.set(door.name, door);
+    }
+
+    private createKeyObject() {
+        const key = createKey(this.keyPosition.clone(), "gold_key");
+        const ball = getObjectByName("ball");
+        if (ball) {
+            key.getComponent(PickupComponent)?.addTriggerObject(ball);
+        }
+        return key;
+    }
+
+    private createDoorObject() {
+        return createDoor(
+            this.doorPosition.clone(),
+            new THREE.Vector3(4, 5, 1),
+            "gold_key",
+        );
     }
 }
