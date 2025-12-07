@@ -16,7 +16,7 @@ import { createDoor } from "../objects/doorScript";
 import { RespawnSystem } from "../respawnSystem";
 
 export class Level3 extends BaseLevel {
-    private readonly baseOffset = { x: 500, y: 0, z: -15 } as const;
+    private readonly baseOffset = { x: 1000, y: 0, z: -15 } as const;
     private readonly tileSize = 20;
 
     private keyPosition = new THREE.Vector3();
