@@ -16,6 +16,19 @@ export type ButtonOptions = {
     style?: Partial<CSSStyleDeclaration>;
 };
 
+export type HUDMode = "light" | "dark";
+export type HUDColors = {
+    background: string;
+    foreground: string;
+    accent: string;
+    buttonBg: string;
+    buttonText: string;
+    bubbleBg: string;
+    bubbleText: string;
+    border: string;
+    shadow: string;
+};
+
 export type UIManager = {
     container: HTMLDivElement;
     overlay?: HTMLDivElement | undefined;
@@ -24,6 +37,7 @@ export type UIManager = {
         label: string,
         onClick: (e: MouseEvent) => void,
         opts?: ButtonOptions,
+        parent?: HTMLElement,
     ) => HTMLButtonElement;
     createToggleButton: (
         id: string,
@@ -37,6 +51,10 @@ export type UIManager = {
     hideOverlay: () => void;
     clearButtons: () => void;
     setHUDMode: (mode: "light" | "dark") => void;
+    createModeToggleButton: (parent?: HTMLElement) => HTMLButtonElement;
+    onThemeChange: (
+        listener: (mode: "light" | "dark", colors: HUDColors) => void,
+    ) => void;
     dispose: () => void;
 };
 
@@ -44,18 +62,6 @@ export function createUIManager(
     parent: HTMLElement = document.body,
 ): UIManager {
     // Standardized HUD color palettes for light/dark mode
-    type HUDMode = "light" | "dark";
-    type HUDColors = {
-        background: string;
-        foreground: string;
-        accent: string;
-        buttonBg: string;
-        buttonText: string;
-        bubbleBg: string;
-        bubbleText: string;
-        border: string;
-        shadow: string;
-    };
     const HUD_THEMES: Record<HUDMode, HUDColors> = {
         light: {
             background: "rgba(255,255,255,0.95)",
@@ -82,6 +88,7 @@ export function createUIManager(
     };
     let hudMode: HUDMode = "light";
     let hudColors: HUDColors = HUD_THEMES[hudMode];
+    const themeListeners: Array<(mode: HUDMode, colors: HUDColors) => void> = [];
 
     let modeToggleBtn: HTMLButtonElement | null = null;
 
@@ -105,7 +112,7 @@ export function createUIManager(
             keyAnimEl.style.border = `1px solid ${hudColors.border}`;
             keyAnimEl.style.boxShadow = hudColors.shadow;
         }
-        // also update the top-left mode toggle if present
+        // also update the mode toggle if present
         if (modeToggleBtn) {
             modeToggleBtn.style.background = hudColors.buttonBg;
             modeToggleBtn.style.color = hudColors.buttonText;
@@ -118,6 +125,8 @@ export function createUIManager(
                 hudMode === "dark" ? "true" : "false",
             );
         }
+
+        themeListeners.forEach((listener) => listener(mode, hudColors));
     }
     // prefer to detect system preference initially
     try {
@@ -146,16 +155,12 @@ export function createUIManager(
 
     let overlay: HTMLDivElement | undefined = undefined;
 
-    // top-left mode toggle (Light / Dark)
-    const topLeftContainer = document.createElement("div");
-    topLeftContainer.style.position = "fixed";
-    topLeftContainer.style.left = "16px";
-    topLeftContainer.style.top = "64px";
-    topLeftContainer.style.zIndex = "10001";
-    topLeftContainer.style.pointerEvents = "auto";
-    parent.appendChild(topLeftContainer);
+    function onThemeChange(listener: (mode: HUDMode, colors: HUDColors) => void) {
+        themeListeners.push(listener);
+        listener(hudMode, hudColors);
+    }
 
-    function createModeToggle(): HTMLButtonElement {
+    function createModeToggleButton(parentEl: HTMLElement = container) {
         const btn = document.createElement("button");
         btn.className = "ui-mode-toggle";
         btn.type = "button";
@@ -182,10 +187,9 @@ export function createUIManager(
             );
         });
         modeToggleBtn = btn;
+        parentEl.appendChild(btn);
         return btn;
     }
-
-    topLeftContainer.appendChild(createModeToggle());
 
     // bottom-left key-emoji animator (triggered by pressing "8")
     let keyAnimEl: HTMLDivElement | null = null;
@@ -299,6 +303,7 @@ export function createUIManager(
         label: string,
         onClick: (e: MouseEvent) => void,
         opts: ButtonOptions = {},
+        parentEl: HTMLElement = container,
     ) {
         const btn = document.createElement("button");
         btn.id = id;
@@ -327,7 +332,7 @@ export function createUIManager(
             }
         });
 
-        container.appendChild(btn);
+        parentEl.appendChild(btn);
         return btn;
     }
 
@@ -417,8 +422,6 @@ export function createUIManager(
             overlay.parentElement.removeChild(overlay);
         if (container.parentElement)
             container.parentElement.removeChild(container);
-        if (topLeftContainer.parentElement)
-            topLeftContainer.parentElement.removeChild(topLeftContainer);
         // cleanup key animation & listener
         try {
             window.removeEventListener("keydown", onKeyPressForKeyEmoji);
@@ -442,6 +445,8 @@ export function createUIManager(
         createToggleButton,
         setButtonEnabled,
         setHUDMode,
+        createModeToggleButton,
+        onThemeChange,
         showOverlay,
         hideOverlay,
         clearButtons,
