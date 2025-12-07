@@ -200,7 +200,7 @@ ui.createButton(
     { ariaLabel: "Move Right", style: btnStyle },
 );
 
-// --- Escape menu: restart + light/dark toggle ---
+//Escape menu: restart + light/dark toggle
 const escapeMenuOverlay = document.createElement("div");
 escapeMenuOverlay.style.position = "fixed";
 escapeMenuOverlay.style.left = "0";
@@ -242,6 +242,7 @@ escapeMenuButtons.style.display = "flex";
 escapeMenuButtons.style.flexDirection = "column";
 escapeMenuButtons.style.gap = "12px";
 
+//restart current level button
 const restartButton = ui.createButton(
     "btn-restart-level",
     "Restart Level",
