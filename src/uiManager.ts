@@ -88,7 +88,8 @@ export function createUIManager(
     };
     let hudMode: HUDMode = "light";
     let hudColors: HUDColors = HUD_THEMES[hudMode];
-    const themeListeners: Array<(mode: HUDMode, colors: HUDColors) => void> = [];
+    const themeListeners: Array<(mode: HUDMode, colors: HUDColors) => void> =
+        [];
 
     let modeToggleBtn: HTMLButtonElement | null = null;
 
@@ -155,7 +156,9 @@ export function createUIManager(
 
     let overlay: HTMLDivElement | undefined = undefined;
 
-    function onThemeChange(listener: (mode: HUDMode, colors: HUDColors) => void) {
+    function onThemeChange(
+        listener: (mode: HUDMode, colors: HUDColors) => void,
+    ) {
         themeListeners.push(listener);
         listener(hudMode, hudColors);
     }
