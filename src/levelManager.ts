@@ -18,7 +18,7 @@ export class LevelManager implements SingletonComponent {
         this.registerLevel(new Level2());
         this.registerLevel(new Level3());
     }
-    
+
     private registerLevel(level: Level): void {
         this.levels.set(level.id.toLowerCase(), level);
     }

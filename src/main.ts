@@ -32,8 +32,11 @@ import { LevelManager } from "./levelManager";
 import type { MainCamera } from "./types";
 import { Level1 } from "./levels/level1";
 //import { Level2 } from "./levels/level2";
-import createUIManager from "./uiManager";
-import { rotateFollowLeft, rotateFollowRight } from "./utilities";
+import { createUIManager } from "./uiManager";
+
+const ui = createUIManager();
+// expose for other modules (Inventory, tests, etc.)
+;(window as any).ui = ui;
 
 // TUNABLE PARAMETERS]
 
@@ -155,8 +158,6 @@ const levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
 // --- UI: bottom-center arrow buttons (left / right) ---
-const ui = createUIManager();
-// move the UI container to bottom-center and layout buttons horizontally
 ui.container.style.left = "50%";
 ui.container.style.right = "auto";
 ui.container.style.top = "auto";
@@ -181,24 +182,24 @@ const btnStyle: Partial<CSSStyleDeclaration> = {
     boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
 };
 
-ui.createButton(
-    "btn-left",
-    "◀",
-    () => {
-        console.debug("UI: left button clicked");
-        rotateFollowLeft();
-    },
-    { ariaLabel: "Move Left", style: btnStyle },
-);
-ui.createButton(
-    "btn-right",
-    "▶",
-    () => {
-        console.debug("UI: right button clicked");
-        rotateFollowRight();
-    },
-    { ariaLabel: "Move Right", style: btnStyle },
-);
+// ui.createButton(
+//     "btn-left",
+//     "◀",
+//     () => {
+//         console.debug("UI: left button clicked");
+//         rotateFollowLeft();
+//     },
+//     { ariaLabel: "Move Left", style: btnStyle },
+// );
+// ui.createButton(
+//     "btn-right",
+//     "▶",
+//     () => {
+//         console.debug("UI: right button clicked");
+//         rotateFollowRight();
+//     },
+//     { ariaLabel: "Move Right", style: btnStyle },
+// );
 
 //Escape menu: restart + light/dark toggle
 const escapeMenuOverlay = document.createElement("div");
