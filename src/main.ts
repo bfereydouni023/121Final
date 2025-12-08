@@ -331,14 +331,14 @@ languageButton.style.gap = "8px";
 // Level Select button (placed below Restart)
 const levelSelectButton = ui.createButton(
     "btn-level-select",
-    "Level Select",
+    translate("levelSelectButton"),
     () => {
         // toggle the level-popout but keep the pause menu visible
         const pop = ensureLevelPopout();
         pop.style.display = pop.style.display === "none" ? "flex" : "none";
     },
     {
-        ariaLabel: "Open level select",
+        ariaLabel: translate("levelSelectAria"),
         style: {
             width: "100%",
             fontSize: "16px",
@@ -353,6 +353,18 @@ levelSelectButton.style.display = "flex";
 // Level select popout: creates three square level buttons under restart
 const LEVEL_POPOUT_ID = "level-select-popout";
 const UNLOCKED_LEVELS_KEY = "unlockedLevels";
+//adding level labels for translation
+const LEVEL_LABELS: Record<string, number> = {
+    level1: 1,
+    level2: 2,
+    level3: 3,
+};
+
+//gets the label for each level with proper translation
+function getLevelLabel(levelId: string): string {
+    const levelNumber = LEVEL_LABELS[levelId.toLowerCase()];
+    return translate("levelLabel", { value: levelNumber ?? levelId });
+}
 
 function loadUnlockedLevels(): Set<string> {
     try {
@@ -412,6 +424,20 @@ function updateLevelButtons() {
     }
 }
 
+function updateLevelButtonLabels() {
+    const pop = document.getElementById(
+        LEVEL_POPOUT_ID,
+    ) as HTMLDivElement | null;
+    if (!pop) return;
+    const btns = Array.from(pop.querySelectorAll("button"));
+    for (const b of btns) {
+        const levelId = (b as HTMLButtonElement).dataset["levelId"] ?? "";
+        const label = getLevelLabel(levelId);
+        b.textContent = label;
+        b.setAttribute("aria-label", label);
+    }
+}
+
 function ensureLevelPopout(): HTMLDivElement {
     let pop = document.getElementById(LEVEL_POPOUT_ID) as HTMLDivElement | null;
     if (!pop) {
@@ -423,10 +449,11 @@ function ensureLevelPopout(): HTMLDivElement {
         pop.style.justifyContent = "center";
         pop.style.marginTop = "8px";
 
-        const makeLevelButton = (label: string, levelId: string) => {
+        const makeLevelButton = (levelId: string) => {
             const b = document.createElement("button");
             b.type = "button";
-            b.textContent = label;
+            b.textContent = getLevelLabel(levelId);
+            b.setAttribute("aria-label", getLevelLabel(levelId));
             b.dataset["levelId"] = levelId;
             b.style.width = "64px";
             b.style.height = "64px";
@@ -448,9 +475,9 @@ function ensureLevelPopout(): HTMLDivElement {
             return b;
         };
 
-        pop.appendChild(makeLevelButton("Level 1", "level1"));
-        pop.appendChild(makeLevelButton("Level 2", "level2"));
-        pop.appendChild(makeLevelButton("Level 3", "level3"));
+        pop.appendChild(makeLevelButton("level1"));
+        pop.appendChild(makeLevelButton("level2"));
+        pop.appendChild(makeLevelButton("level3"));
         // initially hidden until user toggles
         pop.style.display = "none";
 
@@ -560,11 +587,14 @@ function applyLanguageTexts() {
     escapeMenuDescription.textContent = translate("pauseDescription");
     restartButton.textContent = translate("restartButton");
     restartButton.setAttribute("aria-label", translate("restartAria"));
+    levelSelectButton.textContent = translate("levelSelectButton");
+    levelSelectButton.setAttribute("aria-label", translate("levelSelectAria"));
     modeToggleButton.title = translate("modeToggleTitle");
     languageButton.setAttribute("aria-label", translate("languageLabel"));
     settingsButton.title = translate("pauseTitle");
     settingsButton.setAttribute("aria-label", translate("pauseTitle"));
     updateLanguageButtonLabel();
+    updateLevelButtonLabels();
     if (victoryOverlayText)
         victoryOverlayText.textContent = translate("victoryMessage");
 }

@@ -1,12 +1,4 @@
-/**
- * Simple UI manager for DOM buttons and overlays.
- *
- * Usage:
- *   import { createUIManager } from './uiManager';
- *   const ui = createUIManager();
- *   const btn = ui.createButton('hold', 'Hold Ball', () => { console.log('hold'); });
- *   ui.showOverlay('Paused');
- */
+import { translate } from "./languageSettings";
 
 export type ButtonOptions = {
     className?: string;
@@ -427,7 +419,11 @@ export function createUIManager(
                     const lvlBtn = document.createElement("button");
                     lvlBtn.id = "ui-level-select";
                     lvlBtn.type = "button";
-                    lvlBtn.textContent = "Level Select";
+                    lvlBtn.textContent = translate("levelSelectButton");
+                    lvlBtn.setAttribute(
+                        "aria-label",
+                        translate("levelSelectAria"),
+                    );
                     lvlBtn.style.padding = "8px 12px";
                     lvlBtn.style.borderRadius = "6px";
                     lvlBtn.style.border = `1px solid ${hudColors.border}`;
@@ -464,34 +460,50 @@ export function createUIManager(
                 "#overlay-button-row",
             ) as HTMLDivElement | null;
             if (opts?.showLevelSelect) {
-                if (btnRow && !btnRow.querySelector("#ui-level-select")) {
-                    const lvlBtn = document.createElement("button");
-                    lvlBtn.id = "ui-level-select";
-                    lvlBtn.type = "button";
-                    lvlBtn.textContent = "Level Select";
-                    lvlBtn.style.padding = "8px 12px";
-                    lvlBtn.style.borderRadius = "6px";
-                    lvlBtn.style.border = `1px solid ${hudColors.border}`;
-                    lvlBtn.style.background = hudColors.buttonBg;
-                    lvlBtn.style.color = hudColors.buttonText;
-                    lvlBtn.style.cursor = "pointer";
-                    lvlBtn.style.fontFamily = "system-ui, Arial, sans-serif";
-                    lvlBtn.style.fontSize = "14px";
-                    (lvlBtn.style as CSSStyleDeclaration).boxShadow =
-                        hudColors.shadow;
-                    lvlBtn.addEventListener("click", () => {
-                        try {
-                            window.dispatchEvent(
-                                new CustomEvent("ui:levelSelect"),
-                            );
-                        } catch (err) {
-                            console.error(
-                                "Error dispatching ui:levelSelect event",
-                                err,
-                            );
-                        }
-                    });
-                    btnRow.appendChild(lvlBtn);
+                if (btnRow) {
+                    const existing = btnRow.querySelector(
+                        "#ui-level-select",
+                    ) as HTMLButtonElement | null;
+                    if (existing) {
+                        existing.textContent = translate("levelSelectButton");
+                        existing.setAttribute(
+                            "aria-label",
+                            translate("levelSelectAria"),
+                        );
+                    } else {
+                        const lvlBtn = document.createElement("button");
+                        lvlBtn.id = "ui-level-select";
+                        lvlBtn.type = "button";
+                        lvlBtn.textContent = translate("levelSelectButton");
+                        lvlBtn.setAttribute(
+                            "aria-label",
+                            translate("levelSelectAria"),
+                        );
+                        lvlBtn.style.padding = "8px 12px";
+                        lvlBtn.style.borderRadius = "6px";
+                        lvlBtn.style.border = `1px solid ${hudColors.border}`;
+                        lvlBtn.style.background = hudColors.buttonBg;
+                        lvlBtn.style.color = hudColors.buttonText;
+                        lvlBtn.style.cursor = "pointer";
+                        lvlBtn.style.fontFamily =
+                            "system-ui, Arial, sans-serif";
+                        lvlBtn.style.fontSize = "14px";
+                        (lvlBtn.style as CSSStyleDeclaration).boxShadow =
+                            hudColors.shadow;
+                        lvlBtn.addEventListener("click", () => {
+                            try {
+                                window.dispatchEvent(
+                                    new CustomEvent("ui:levelSelect"),
+                                );
+                            } catch (err) {
+                                console.error(
+                                    "Error dispatching ui:levelSelect event",
+                                    err,
+                                );
+                            }
+                        });
+                        btnRow.appendChild(lvlBtn);
+                    }
                 }
             } else {
                 // remove if present

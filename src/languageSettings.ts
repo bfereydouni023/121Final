@@ -13,7 +13,10 @@ export type TranslationKey =
     | "languagePersian"
     | "languageMandarin"
     | "modeToggleTitle"
-    | "fpsLabel";
+    | "fpsLabel"
+    | "levelSelectButton"
+    | "levelSelectAria"
+    | "levelLabel";
 
 type TranslationMap = Record<SupportedLanguage, Record<TranslationKey, string>>;
 
@@ -34,6 +37,9 @@ const translations: TranslationMap = {
         languageMandarin: "Mandarin",
         modeToggleTitle: "Toggle light / dark mode",
         fpsLabel: "FPS: {value}",
+        levelSelectButton: "Level Select",
+        levelSelectAria: "Open level select",
+        levelLabel: "Level {value}",
     },
     //farsi
     fa: {
@@ -51,6 +57,9 @@ const translations: TranslationMap = {
         languageMandarin: "چینی ماندارین",
         modeToggleTitle: "تغییر حالت روشن/تاریک",
         fpsLabel: "فریم بر ثانیه: {value}",
+        levelSelectButton: "انتخاب مرحله",
+        levelSelectAria: "باز کردن انتخاب مرحله",
+        levelLabel: "مرحله {value}",
     },
     //mandarin
     zh: {
@@ -67,6 +76,9 @@ const translations: TranslationMap = {
         languageMandarin: "中文（普通话）",
         modeToggleTitle: "切换明暗模式",
         fpsLabel: "帧率：{value}",
+        levelSelectButton: "选择关卡",
+        levelSelectAria: "打开关卡选择",
+        levelLabel: "关卡 {value}",
     },
 };
 
