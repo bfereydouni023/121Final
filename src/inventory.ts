@@ -25,7 +25,7 @@ export class Inventory implements SingletonComponent {
                 console.log("Gold key added to inventory");
                 // call appearKeyEmoji if a UI manager instance is exposed on window
                 // (safe no-op if not present)
-                (window as any).ui?.appearKeyEmoji?.();
+                window.ui?.appearKeyEmoji?.();
             }
         } catch (err) {
             console.error("Error while triggering key UI animation:", err);
@@ -49,7 +49,7 @@ export class Inventory implements SingletonComponent {
             if (itemID === "gold_key") {
                 // call appearKeyEmoji if a UI manager instance is exposed on window
                 // (safe no-op if not present)
-                (window as any).ui?.disappearKeyEmoji?.();
+                window.ui?.disappearKeyEmoji?.();
             }
         } catch (err) {
             console.error("Error while triggering key UI animation:", err);
