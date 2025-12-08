@@ -105,7 +105,10 @@ export function createGoal(
                     }),
                 );
             } catch (err) {
-                console.warn("[Goal] failed to dispatch game:victory for final level:", err);
+                console.warn(
+                    "[Goal] failed to dispatch game:victory for final level:",
+                    err,
+                );
             }
             return;
         }
