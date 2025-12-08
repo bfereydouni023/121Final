@@ -94,7 +94,7 @@ export class Level3 extends BaseLevel {
         // Create a Key centered on the tile at grid coords [2,3]
         this.keyPosition = gridToWorld(0, 3, 1); // center of tile [2,3], 1 unit above ground
         this.registerRespawnable("gold_key", () => this.createKeyObject());
-            
+
         // Create a Door at grid coords [-1,1]
         this.doorPosition = gridToWorld(-1, 1, 1); // center of tile [-1,1]
         this.registerRespawnable("door", () => this.createDoorObject());

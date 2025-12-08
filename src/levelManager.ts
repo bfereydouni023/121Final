@@ -24,7 +24,7 @@ export class LevelManager implements SingletonComponent {
     }
 
     swapToLevel(targetId: string) {
-        console.debug('[LevelManager] swapToLevel requested:', targetId);
+        console.debug("[LevelManager] swapToLevel requested:", targetId);
         if (this.activeLevel) {
             this.activeLevel.active = false;
             this.doMapZoomOutIn();
@@ -62,5 +62,14 @@ export class LevelManager implements SingletonComponent {
         tm.createTween(cameraTransform.rotation)
             .to(cameraMapViewTransform.rotation, 2000)
             .start();
+    }
+
+    // Expose the active level (read-only) and its id for other systems
+    public get currentLevel(): Level | null {
+        return this.activeLevel;
+    }
+
+    public get currentLevelId(): string | null {
+        return this.activeLevel?.id ?? null;
     }
 }
