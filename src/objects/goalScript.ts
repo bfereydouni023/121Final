@@ -85,6 +85,17 @@ export function createGoal(
             nextId,
         );
 
+        // notify the app that this level was completed / should be unlocked
+        try {
+            window.dispatchEvent(
+                new CustomEvent("level:unlock", {
+                    detail: { currentLevelId: currentId },
+                }),
+            );
+        } catch (err) {
+            console.warn("[Goal] failed to dispatch level:unlock event:", err);
+        }
+
         lm?.swapToLevel(nextId);
     };
 

@@ -30,8 +30,8 @@ import {
 import { TweenManager } from "./tweenManager";
 import { LevelManager } from "./levelManager";
 import type { MainCamera } from "./types";
-//import { Level1 } from "./levels/level1";
-import { Level3 } from "./levels/level3";
+import { Level1 } from "./levels/level1";
+//  import { Level3 } from "./levels/level3";
 import { createUIManager } from "./uiManager";
 
 const ui = createUIManager();
@@ -289,6 +289,66 @@ levelSelectButton.style.display = "flex";
 
 // Level select popout: creates three square level buttons under restart
 const LEVEL_POPOUT_ID = "level-select-popout";
+const UNLOCKED_LEVELS_KEY = "unlockedLevels";
+
+function loadUnlockedLevels(): Set<string> {
+    try {
+        const raw = localStorage.getItem(UNLOCKED_LEVELS_KEY);
+        if (!raw) return new Set(["level1"]); // default: level1 unlocked
+        const arr = JSON.parse(raw) as string[];
+        return new Set(arr.map((s) => s.toLowerCase()));
+    } catch (err) {
+        console.warn(
+            "Failed to load unlocked levels, defaulting to level1",
+            err,
+        );
+        return new Set(["level1"]);
+    }
+}
+function saveUnlockedLevels(set: Set<string>) {
+    try {
+        localStorage.setItem(
+            UNLOCKED_LEVELS_KEY,
+            JSON.stringify(Array.from(set)),
+        );
+    } catch (err) {
+        console.warn("Failed to save unlocked levels:", err);
+    }
+}
+const unlockedLevels = loadUnlockedLevels();
+
+function isLevelUnlocked(levelId: string) {
+    return unlockedLevels.has(levelId.toLowerCase());
+}
+function unlockLevel(levelId: string) {
+    const id = levelId.toLowerCase();
+    if (!unlockedLevels.has(id)) {
+        unlockedLevels.add(id);
+        saveUnlockedLevels(unlockedLevels);
+        updateLevelButtons();
+    }
+}
+
+function updateLevelButtons() {
+    const pop = document.getElementById(
+        LEVEL_POPOUT_ID,
+    ) as HTMLDivElement | null;
+    if (!pop) return;
+    const btns = Array.from(pop.querySelectorAll("button"));
+    for (const b of btns) {
+        const id = (b as HTMLButtonElement).dataset["levelId"] ?? "";
+        const unlocked = isLevelUnlocked(id);
+        (b as HTMLButtonElement).disabled = !unlocked;
+        if (!unlocked) {
+            b.style.opacity = "0.45";
+            b.style.cursor = "not-allowed";
+        } else {
+            b.style.opacity = "1";
+            b.style.cursor = "pointer";
+        }
+    }
+}
+
 function ensureLevelPopout(): HTMLDivElement {
     let pop = document.getElementById(LEVEL_POPOUT_ID) as HTMLDivElement | null;
     if (!pop) {
@@ -304,6 +364,7 @@ function ensureLevelPopout(): HTMLDivElement {
             const b = document.createElement("button");
             b.type = "button";
             b.textContent = label;
+            b.dataset["levelId"] = levelId;
             b.style.width = "64px";
             b.style.height = "64px";
             b.style.borderRadius = "8px";
@@ -311,12 +372,14 @@ function ensureLevelPopout(): HTMLDivElement {
             b.style.fontWeight = "600";
             b.style.fontSize = "13px";
             b.addEventListener("click", () => {
-                // swap and close pause menu
+                // only allow swap if unlocked
+                if (!isLevelUnlocked(levelId)) return;
                 try {
                     levelManager.swapToLevel(levelId);
                 } catch (err) {
                     console.warn("swapToLevel failed:", err);
                 }
+                // close pause menu after selecting a level
                 setEscapeMenuVisible(false);
             });
             return b;
@@ -327,10 +390,49 @@ function ensureLevelPopout(): HTMLDivElement {
         pop.appendChild(makeLevelButton("Level 3", "level3"));
         // initially hidden until user toggles
         pop.style.display = "none";
-        escapeMenuButtons.appendChild(pop);
+
+        // insert the popout before the dark-mode toggle button if present,
+        // otherwise append to the buttons column. This ensures level buttons
+        // appear above the dark mode toggle.
+        const modeToggleEl = document.getElementById("ui-mode-toggle");
+        if (modeToggleEl && modeToggleEl.parentElement === escapeMenuButtons) {
+            escapeMenuButtons.insertBefore(pop, modeToggleEl);
+        } else {
+            escapeMenuButtons.appendChild(pop);
+        }
+
+        // ensure initial locked/unlocked visuals
+        updateLevelButtons();
     }
     return pop;
 }
+
+// unlock next-level(s) on victory and update UI
+window.addEventListener("game:victory", () => {
+    // existing victory handling (pause) runs elsewhere; here we update progression
+    const current = levelManager.currentLevelId?.toLowerCase() ?? "";
+    if (current === "level1") {
+        unlockLevel("level2");
+    } else if (current === "level2") {
+        unlockLevel("level3");
+    }
+    // if you want to allow revisiting previous levels, ensure level1 always unlocked
+    unlockLevel("level1");
+});
+
+// listen for explicit level unlock events (dispatched by goalScript)
+window.addEventListener("level:unlock", (ev) => {
+    const detail = (ev as CustomEvent)?.detail;
+    const currentRaw =
+        (detail && detail.currentLevelId) ?? levelManager.currentLevelId;
+    const current = (currentRaw ?? "").toString();
+    if (!current) return;
+    try {
+        unlockLevel(current);
+    } catch (err) {
+        console.warn("level:unlock handler failed to unlock level:", err);
+    }
+});
 
 // toggle popout when Level Select is requested
 window.addEventListener("ui:levelSelect", () => {
@@ -341,6 +443,8 @@ window.addEventListener("ui:levelSelect", () => {
 
 const modeToggleButton = ui.createModeToggleButton(escapeMenuButtons);
 modeToggleButton.style.alignSelf = "center";
+// ensure the toggle has a stable id so the popout can be inserted before it
+modeToggleButton.id = "ui-mode-toggle";
 
 ui.onThemeChange((_mode, colors) => {
     escapeMenuPanel.style.background = colors.background;
@@ -449,7 +553,7 @@ window.addEventListener("request:level-swap", (ev: Event) => {
     }, 0);
 });
 
-levelManager.swapToLevel(Level3.name);
+levelManager.swapToLevel(Level1.name);
 renderer.setAnimationLoop(gameLoop);
 
 function setupCamera(): MainCamera {
