@@ -47,7 +47,8 @@ export type UIManager = {
         onToggle: (state: boolean) => void,
     ) => HTMLButtonElement;
     setButtonEnabled: (id: string, enabled: boolean) => void;
-    showOverlay: (text?: string) => void;
+    // showOverlay can optionally include overlay-specific options (e.g. show level-select button)
+    showOverlay: (text?: string, opts?: { showLevelSelect?: boolean }) => void;
     hideOverlay: () => void;
     clearButtons: () => void;
     setHUDMode: (mode: "light" | "dark") => void;
@@ -368,7 +369,7 @@ export function createUIManager(
         if (el) el.disabled = !enabled;
     }
 
-    function showOverlay(text?: string) {
+    function showOverlay(text?: string, opts?: { showLevelSelect?: boolean }) {
         if (!overlay) {
             overlay = document.createElement("div");
             overlay.style.position = "fixed";
@@ -383,6 +384,7 @@ export function createUIManager(
             overlay.style.pointerEvents = "auto";
             overlay.style.background = "rgba(0,0,0,0.0)";
             overlay.style.transition = "background 360ms ease";
+
             const txt = document.createElement("div");
             txt.style.color = "white";
             txt.style.fontFamily = "system-ui, Arial, sans-serif";
@@ -392,19 +394,109 @@ export function createUIManager(
             txt.style.opacity = "0";
             txt.style.transform = "translateY(6px)";
             txt.style.transition = "opacity 360ms ease, transform 360ms ease";
-            overlay.appendChild(txt);
+
+            // container for text + optional buttons
+            const content = document.createElement("div");
+            content.style.display = "flex";
+            content.style.flexDirection = "column";
+            content.style.alignItems = "center";
+            content.style.gap = "12px";
+            content.appendChild(txt);
+
+            // button row for overlay-level controls (hidden if unused)
+            const btnRow = document.createElement("div");
+            btnRow.style.display = "flex";
+            btnRow.style.gap = "8px";
+            btnRow.style.alignItems = "center";
+            btnRow.style.justifyContent = "center";
+            btnRow.id = "overlay-button-row";
+            content.appendChild(btnRow);
+
+            overlay.appendChild(content);
             parent.appendChild(overlay);
+
             // animate in
             requestAnimationFrame(() => {
                 overlay!.style.background = "rgba(0,0,0,0.7)";
                 txt.style.opacity = "1";
                 txt.style.transform = "translateY(0)";
                 txt.textContent = text ?? "";
+                // create level-select button if requested
+                if (opts?.showLevelSelect) {
+                    // createButton is scoped below; reuse styling by building a button manually
+                    const lvlBtn = document.createElement("button");
+                    lvlBtn.id = "ui-level-select";
+                    lvlBtn.type = "button";
+                    lvlBtn.textContent = "Level Select";
+                    lvlBtn.style.padding = "8px 12px";
+                    lvlBtn.style.borderRadius = "6px";
+                    lvlBtn.style.border = `1px solid ${hudColors.border}`;
+                    lvlBtn.style.background = hudColors.buttonBg;
+                    lvlBtn.style.color = hudColors.buttonText;
+                    lvlBtn.style.cursor = "pointer";
+                    lvlBtn.style.fontFamily = "system-ui, Arial, sans-serif";
+                    lvlBtn.style.fontSize = "14px";
+                    (lvlBtn.style as CSSStyleDeclaration).boxShadow =
+                        hudColors.shadow;
+                    lvlBtn.addEventListener("click", () => {
+                        try {
+                            window.dispatchEvent(
+                                new CustomEvent("ui:levelSelect"),
+                            );
+                        } catch (err) {
+                            console.error(
+                                "Error dispatching ui:levelSelect event",
+                                err,
+                            );
+                        }
+                    });
+                    btnRow.appendChild(lvlBtn);
+                }
             });
         } else {
-            const txt = overlay.querySelector("div");
+            const txt = overlay.querySelector(
+                "div > div",
+            ) as HTMLDivElement | null;
             if (txt) txt.textContent = text ?? "";
             overlay.style.display = "flex";
+            // update or add level-select button on existing overlay
+            const btnRow = overlay.querySelector(
+                "#overlay-button-row",
+            ) as HTMLDivElement | null;
+            if (opts?.showLevelSelect) {
+                if (btnRow && !btnRow.querySelector("#ui-level-select")) {
+                    const lvlBtn = document.createElement("button");
+                    lvlBtn.id = "ui-level-select";
+                    lvlBtn.type = "button";
+                    lvlBtn.textContent = "Level Select";
+                    lvlBtn.style.padding = "8px 12px";
+                    lvlBtn.style.borderRadius = "6px";
+                    lvlBtn.style.border = `1px solid ${hudColors.border}`;
+                    lvlBtn.style.background = hudColors.buttonBg;
+                    lvlBtn.style.color = hudColors.buttonText;
+                    lvlBtn.style.cursor = "pointer";
+                    lvlBtn.style.fontFamily = "system-ui, Arial, sans-serif";
+                    lvlBtn.style.fontSize = "14px";
+                    (lvlBtn.style as CSSStyleDeclaration).boxShadow =
+                        hudColors.shadow;
+                    lvlBtn.addEventListener("click", () => {
+                        try {
+                            window.dispatchEvent(
+                                new CustomEvent("ui:levelSelect"),
+                            );
+                        } catch (err) {
+                            console.error(
+                                "Error dispatching ui:levelSelect event",
+                                err,
+                            );
+                        }
+                    });
+                    btnRow.appendChild(lvlBtn);
+                }
+            } else {
+                // remove if present
+                btnRow?.querySelector("#ui-level-select")?.remove();
+            }
         }
     }
 

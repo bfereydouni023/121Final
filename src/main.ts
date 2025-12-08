@@ -265,6 +265,80 @@ const restartButton = ui.createButton(
 );
 restartButton.style.display = "flex";
 
+// Level Select button (placed below Restart)
+const levelSelectButton = ui.createButton(
+    "btn-level-select",
+    "Level Select",
+    () => {
+        // toggle the level-popout but keep the pause menu visible
+        const pop = ensureLevelPopout();
+        pop.style.display = pop.style.display === "none" ? "flex" : "none";
+    },
+    {
+        ariaLabel: "Open level select",
+        style: {
+            width: "100%",
+            fontSize: "16px",
+            fontWeight: "bold",
+            justifyContent: "center",
+        },
+    },
+    escapeMenuButtons,
+);
+levelSelectButton.style.display = "flex";
+
+// Level select popout: creates three square level buttons under restart
+const LEVEL_POPOUT_ID = "level-select-popout";
+function ensureLevelPopout(): HTMLDivElement {
+    let pop = document.getElementById(LEVEL_POPOUT_ID) as HTMLDivElement | null;
+    if (!pop) {
+        pop = document.createElement("div");
+        pop.id = LEVEL_POPOUT_ID;
+        pop.style.display = "flex";
+        pop.style.flexDirection = "row";
+        pop.style.gap = "8px";
+        pop.style.justifyContent = "center";
+        pop.style.marginTop = "8px";
+
+        const makeLevelButton = (label: string, levelId: string) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = label;
+            b.style.width = "64px";
+            b.style.height = "64px";
+            b.style.borderRadius = "8px";
+            b.style.cursor = "pointer";
+            b.style.fontWeight = "600";
+            b.style.fontSize = "13px";
+            b.addEventListener("click", () => {
+                // swap and close pause menu
+                try {
+                    levelManager.swapToLevel(levelId);
+                } catch (err) {
+                    console.warn("swapToLevel failed:", err);
+                }
+                setEscapeMenuVisible(false);
+            });
+            return b;
+        };
+
+        pop.appendChild(makeLevelButton("Level 1", "level1"));
+        pop.appendChild(makeLevelButton("Level 2", "level2"));
+        pop.appendChild(makeLevelButton("Level 3", "level3"));
+        // initially hidden until user toggles
+        pop.style.display = "none";
+        escapeMenuButtons.appendChild(pop);
+    }
+    return pop;
+}
+
+// toggle popout when Level Select is requested
+window.addEventListener("ui:levelSelect", () => {
+    // keep behavior consistent if other code dispatches ui:levelSelect
+    const pop = ensureLevelPopout();
+    pop.style.display = pop.style.display === "none" ? "flex" : "none";
+});
+
 const modeToggleButton = ui.createModeToggleButton(escapeMenuButtons);
 modeToggleButton.style.alignSelf = "center";
 
@@ -279,6 +353,26 @@ ui.onThemeChange((_mode, colors) => {
     restartButton.style.color = colors.buttonText;
     restartButton.style.border = `1px solid ${colors.border}`;
     (restartButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+
+    // style the Level Select button to match
+    levelSelectButton.style.background = colors.buttonBg;
+    levelSelectButton.style.color = colors.buttonText;
+    levelSelectButton.style.border = `1px solid ${colors.border}`;
+    (levelSelectButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+
+    // style popout level buttons if present
+    const pop = document.getElementById(
+        LEVEL_POPOUT_ID,
+    ) as HTMLDivElement | null;
+    if (pop) {
+        const btns = Array.from(pop.querySelectorAll("button"));
+        for (const b of btns) {
+            b.style.background = colors.buttonBg;
+            b.style.color = colors.buttonText;
+            b.style.border = `1px solid ${colors.border}`;
+            (b.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+        }
+    }
 });
 
 escapeMenuPanel.append(

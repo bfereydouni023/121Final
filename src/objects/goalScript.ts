@@ -64,7 +64,7 @@ export function createGoal(
     const script = goal.addComponent(ScriptComponent);
     let triggered = false;
 
-    script.onCollisionEnter = (other) => {
+    script.onCollisionEnter = () => {
         if (triggered) return;
         triggered = true;
 
