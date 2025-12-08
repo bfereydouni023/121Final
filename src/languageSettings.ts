@@ -38,7 +38,8 @@ const translations: TranslationMap = {
     //farsi
     fa: {
         pauseTitle: "منوی توقف",
-        pauseDescription: "چبرای ادامه دوباره Escape را فشار دهید",
+        // pauseDescription: "برای ادامه دوباره Escape را فشار دهید.",
+        pauseDescription: "برای بستن منو اسکیپ را فشار دهید",
         restartButton: "بازشروع مرحله",
         restartAria: "مرحله را دوباره شروع کنید",
         moveLeft: "حرکت به چپ",
