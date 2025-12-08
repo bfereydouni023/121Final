@@ -168,6 +168,7 @@ setRenderer(new THREE.WebGLRenderer());
 renderer.setClearColor(0x87ceeb, 1);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+renderer.domElement.style.touchAction = "none";
 
 // Create FPS counter
 createFPSCounter();
@@ -263,6 +264,25 @@ escapeMenuButtons.style.display = "flex";
 escapeMenuButtons.style.flexDirection = "column";
 escapeMenuButtons.style.gap = "12px";
 
+//create a button on screen so setting menu can get accessed through touch screen input as well as esc key
+const settingsButton = document.createElement("button");
+settingsButton.type = "button";
+settingsButton.textContent = "⚙️";
+settingsButton.style.position = "fixed";
+settingsButton.style.right = "16px";
+settingsButton.style.top = "16px";
+settingsButton.style.width = "56px";
+settingsButton.style.height = "56px";
+settingsButton.style.borderRadius = "12px";
+settingsButton.style.border = "none";
+settingsButton.style.display = "flex";
+settingsButton.style.alignItems = "center";
+settingsButton.style.justifyContent = "center";
+settingsButton.style.fontSize = "28px";
+settingsButton.style.lineHeight = "1";
+settingsButton.style.cursor = "pointer";
+settingsButton.style.zIndex = "15000";
+
 //restart current level button
 const restartButton = ui.createButton(
     "btn-restart-level",
@@ -313,6 +333,7 @@ languageButton.style.gap = "8px";
 const modeToggleButton = ui.createModeToggleButton(escapeMenuButtons);
 modeToggleButton.style.alignSelf = "center";
 
+//changes colors of the buttons/ui elements when light mode is changed
 ui.onThemeChange((_mode, colors) => {
     escapeMenuPanel.style.background = colors.background;
     escapeMenuPanel.style.color = colors.foreground;
@@ -328,6 +349,10 @@ ui.onThemeChange((_mode, colors) => {
     languageButton.style.color = colors.buttonText;
     languageButton.style.border = `1px solid ${colors.border}`;
     (languageButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+    settingsButton.style.background = colors.buttonBg;
+    settingsButton.style.color = colors.buttonText;
+    settingsButton.style.border = `1px solid ${colors.border}`;
+    (settingsButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
 });
 
 function updateLanguageButtonLabel() {
@@ -341,6 +366,8 @@ function applyLanguageTexts() {
     restartButton.setAttribute("aria-label", translate("restartAria"));
     modeToggleButton.title = translate("modeToggleTitle");
     languageButton.setAttribute("aria-label", translate("languageLabel"));
+    settingsButton.title = translate("pauseTitle");
+    settingsButton.setAttribute("aria-label", translate("pauseTitle"));
     updateLanguageButtonLabel();
     if (victoryOverlayText)
         victoryOverlayText.textContent = translate("victoryMessage");
@@ -356,6 +383,7 @@ escapeMenuPanel.append(
 );
 escapeMenuOverlay.appendChild(escapeMenuPanel);
 document.body.appendChild(escapeMenuOverlay);
+document.body.appendChild(settingsButton);
 
 let isEscapeMenuOpen = false;
 function setEscapeMenuVisible(visible: boolean) {
@@ -365,6 +393,26 @@ function setEscapeMenuVisible(visible: boolean) {
 
 escapeMenuOverlay.addEventListener("click", (event) => {
     if (event.target === escapeMenuOverlay) setEscapeMenuVisible(false);
+});
+
+escapeMenuOverlay.addEventListener("pointerdown", (event) => {
+    if (event.target === escapeMenuOverlay) setEscapeMenuVisible(false);
+});
+
+const toggleEscapeMenu = () => {
+    setEscapeMenuVisible(!isEscapeMenuOpen);
+};
+
+settingsButton.addEventListener("pointerup", (event) => {
+    event.preventDefault();
+    toggleEscapeMenu();
+});
+
+settingsButton.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleEscapeMenu();
+    }
 });
 
 window.addEventListener("keydown", (event) => {
