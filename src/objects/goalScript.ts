@@ -96,6 +96,20 @@ export function createGoal(
             console.warn("[Goal] failed to dispatch level:unlock event:", err);
         }
 
+        // If we're on Level3, treat this as the final victory and trigger the victory flow.
+        if (currentId === Level3.name) {
+            try {
+                window.dispatchEvent(
+                    new CustomEvent("game:victory", {
+                        detail: { currentLevelId: currentId },
+                    }),
+                );
+            } catch (err) {
+                console.warn("[Goal] failed to dispatch game:victory for final level:", err);
+            }
+            return;
+        }
+
         lm?.swapToLevel(nextId);
     };
 

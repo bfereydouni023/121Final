@@ -671,5 +671,18 @@ window.addEventListener("keydown", (ev: KeyboardEvent) => {
         } catch (err) {
             console.warn(`[Main] swapToLevel(${id}) failed:`, err);
         }
+    } else if (k === "9") {
+        // reset unlocked levels data (persisted + in-memory) and refresh UI
+        try {
+            localStorage.removeItem(UNLOCKED_LEVELS_KEY);
+            // clear in-memory set and restore default unlocked state
+            unlockedLevels.clear();
+            unlockedLevels.add("level1");
+            saveUnlockedLevels(unlockedLevels);
+            updateLevelButtons();
+            console.log("Unlocked levels reset: only level1 is unlocked now.");
+        } catch (err) {
+            console.error("Failed to reset unlocked levels:", err);
+        }
     }
 });
