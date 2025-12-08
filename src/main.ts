@@ -34,6 +34,14 @@ import { Level1 } from "./levels/level1";
 //import { Level2 } from "./levels/level2";
 import createUIManager from "./uiManager";
 import { rotateFollowLeft, rotateFollowRight } from "./utilities";
+import {
+    getLanguage,
+    getLanguageLabel,
+    onLanguageChange,
+    setLanguage,
+    type SupportedLanguage,
+    translate,
+} from "./languageSettings";
 
 // TUNABLE PARAMETERS]
 
@@ -49,6 +57,8 @@ physicsClock.start();
 const physicsEventQueue = new RAPIER.EventQueue(true);
 
 let gamePaused = false;
+let victoryOverlay: HTMLDivElement | null = null;
+let victoryOverlayText: HTMLDivElement | null = null;
 
 function pauseGameForVictory() {
     if (gamePaused) return;
@@ -68,37 +78,47 @@ window.addEventListener("game:victory", () => {
 
 // create and show the fade-to-black + "You win!" overlay
 function showVictoryOverlay() {
-    const overlay = document.createElement("div");
-    overlay.style.position = "fixed";
-    overlay.style.left = "0";
-    overlay.style.top = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "9999";
-    overlay.style.pointerEvents = "auto";
-    overlay.style.background = "rgba(0,0,0,0)";
-    overlay.style.transition = "background 600ms ease";
+    if (!victoryOverlay) {
+        victoryOverlay = document.createElement("div");
+        victoryOverlay.style.position = "fixed";
+        victoryOverlay.style.left = "0";
+        victoryOverlay.style.top = "0";
+        victoryOverlay.style.width = "100%";
+        victoryOverlay.style.height = "100%";
+        victoryOverlay.style.display = "flex";
+        victoryOverlay.style.alignItems = "center";
+        victoryOverlay.style.justifyContent = "center";
+        victoryOverlay.style.zIndex = "9999";
+        victoryOverlay.style.pointerEvents = "auto";
+        victoryOverlay.style.background = "rgba(0,0,0,0)";
+        victoryOverlay.style.transition = "background 600ms ease";
 
-    const text = document.createElement("div");
-    text.textContent = "You win!";
-    text.style.color = "white";
-    text.style.fontFamily = "system-ui, Arial, sans-serif";
-    text.style.fontSize = "4rem";
-    text.style.opacity = "0";
-    text.style.transition = "opacity 800ms ease, transform 800ms ease";
-    text.style.transform = "translateY(10px)";
+        victoryOverlayText = document.createElement("div");
+        victoryOverlayText.style.color = "white";
+        victoryOverlayText.style.fontFamily = "system-ui, Arial, sans-serif";
+        victoryOverlayText.style.fontSize = "4rem";
+        victoryOverlayText.style.opacity = "0";
+        victoryOverlayText.style.transition =
+            "opacity 800ms ease, transform 800ms ease";
+        victoryOverlayText.style.transform = "translateY(10px)";
 
-    overlay.appendChild(text);
-    document.body.appendChild(overlay);
+        victoryOverlay.appendChild(victoryOverlayText);
+        document.body.appendChild(victoryOverlay);
+    }
 
-    // force layout, then animate
-    void overlay.offsetWidth;
-    overlay.style.background = "rgba(0,0,0,0.9)";
-    text.style.opacity = "1";
-    text.style.transform = "translateY(0)";
+    if (victoryOverlayText) {
+        victoryOverlayText.textContent = translate("victoryMessage");
+        victoryOverlayText.style.opacity = "0";
+        victoryOverlayText.style.transform = "translateY(10px)";
+    }
+
+    victoryOverlay!.style.background = "rgba(0,0,0,0)";
+    void victoryOverlay!.offsetWidth;
+    victoryOverlay!.style.background = "rgba(0,0,0,0.9)";
+    if (victoryOverlayText) {
+        victoryOverlayText.style.opacity = "1";
+        victoryOverlayText.style.transform = "translateY(0)";
+    }
 }
 
 function createFPSCounter(): void {
@@ -118,7 +138,7 @@ function updateFPSCounter(delta: number): void {
     if (fpsDeltas.length > maxDeltas) fpsDeltas.shift();
     const avgDelta = fpsDeltas.reduce((a, b) => a + b, 0) / fpsDeltas.length;
     const fps = Math.round(1 / avgDelta);
-    fpsElement.textContent = `FPS: ${fps}`;
+    fpsElement.textContent = translate("fpsLabel", { value: fps });
 }
 
 const renderClock = new THREE.Clock();
@@ -228,12 +248,12 @@ escapeMenuPanel.style.gap = "16px";
 escapeMenuPanel.style.boxShadow = "0 24px 60px rgba(0,0,0,0.45)";
 
 const escapeMenuTitle = document.createElement("div");
-escapeMenuTitle.textContent = "Pause Menu";
+escapeMenuTitle.textContent = translate("pauseTitle");
 escapeMenuTitle.style.fontSize = "1.5rem";
 escapeMenuTitle.style.fontWeight = "bold";
 
 const escapeMenuDescription = document.createElement("div");
-escapeMenuDescription.textContent = "Press Escape again to resume.";
+escapeMenuDescription.textContent = translate("pauseDescription");
 escapeMenuDescription.style.opacity = "0.85";
 escapeMenuDescription.style.fontSize = "0.95rem";
 
@@ -252,7 +272,7 @@ const restartButton = ui.createButton(
         isEscapeMenuOpen = false;
     },
     {
-        ariaLabel: "Restart current level",
+        ariaLabel: translate("restartAria"),
         style: {
             width: "100%",
             fontSize: "16px",
@@ -263,6 +283,31 @@ const restartButton = ui.createButton(
     escapeMenuButtons,
 );
 restartButton.style.display = "flex";
+
+//creating the language toggle button, has 3 options: english, farsi, mandarin
+const supportedLanguages: SupportedLanguage[] = ["en", "fa", "zh"];
+const languageButton = ui.createButton(
+    "btn-language",
+    "",
+    () => {
+        const currentIndex = supportedLanguages.indexOf(getLanguage());
+        const nextIndex = (currentIndex + 1) % supportedLanguages.length;
+        setLanguage(supportedLanguages[nextIndex]);
+    },
+    {
+        ariaLabel: translate("languageLabel"),
+        style: {
+            width: "100%",
+            fontSize: "16px",
+            fontWeight: "bold",
+            justifyContent: "center",
+        },
+    },
+    escapeMenuButtons,
+);
+languageButton.style.display = "flex";
+languageButton.style.alignItems = "center";
+languageButton.style.gap = "8px";
 
 const modeToggleButton = ui.createModeToggleButton(escapeMenuButtons);
 modeToggleButton.style.alignSelf = "center";
@@ -278,7 +323,30 @@ ui.onThemeChange((_mode, colors) => {
     restartButton.style.color = colors.buttonText;
     restartButton.style.border = `1px solid ${colors.border}`;
     (restartButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
+    languageButton.style.background = colors.buttonBg;
+    languageButton.style.color = colors.buttonText;
+    languageButton.style.border = `1px solid ${colors.border}`;
+    (languageButton.style as CSSStyleDeclaration).boxShadow = colors.shadow;
 });
+
+function updateLanguageButtonLabel() {
+    languageButton.textContent = `${translate("languageLabel")}: ${getLanguageLabel(getLanguage())}`;
+}
+
+function applyLanguageTexts() {
+    escapeMenuTitle.textContent = translate("pauseTitle");
+    escapeMenuDescription.textContent = translate("pauseDescription");
+    restartButton.textContent = translate("restartButton");
+    restartButton.setAttribute("aria-label", translate("restartAria"));
+    modeToggleButton.title = translate("modeToggleTitle");
+    languageButton.setAttribute("aria-label", translate("languageLabel"));
+    updateLanguageButtonLabel();
+    if (victoryOverlayText)
+        victoryOverlayText.textContent = translate("victoryMessage");
+}
+
+applyLanguageTexts();
+onLanguageChange(() => applyLanguageTexts());
 
 escapeMenuPanel.append(
     escapeMenuTitle,
