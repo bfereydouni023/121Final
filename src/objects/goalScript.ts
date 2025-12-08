@@ -99,11 +99,23 @@ export function createGoal(
         currentId = currentId ?? winHint.currentLevelId;
 
         let nextId: string | undefined;
+
+        // Prefer explicit id mapping; if absent, use level list/index to pick the next level.
         if (currentId === Level1.name) nextId = Level2.name;
         else if (currentId === Level2.name) nextId = Level3.name;
-        else if (currentId === Level3.name)
-            nextId = Level1.name; // wrap to Level1
-        else nextId = Level2.name; // default fallback
+        else if (currentId === Level3.name) nextId = Level1.name; // wrap to Level1
+        else if (
+            lmRaw &&
+            typeof lmRaw.currentIndex === "number" &&
+            Array.isArray(lmRaw.levels) &&
+            lmRaw.levels.length > 0
+        ) {
+            const nextIndex = (lmRaw.currentIndex + 1) % lmRaw.levels.length;
+            nextId = lmRaw.levels[nextIndex]?.id ?? lmRaw.levels[0]?.id;
+        } else {
+            // last-resort fallback
+            nextId = Level3.name;
+        }
 
         // request deferred level swap outside physics loop
         window.dispatchEvent(

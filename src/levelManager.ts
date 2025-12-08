@@ -23,21 +23,22 @@ export class LevelManager implements SingletonComponent {
         this.levels.set(level.id.toLowerCase(), level);
     }
 
-    swapToLevel(levelID: string): void {
+    swapToLevel(targetId: string) {
+        console.debug('[LevelManager] swapToLevel requested:', targetId);
         if (this.activeLevel) {
             this.activeLevel.active = false;
             this.doMapZoomOutIn();
         } else {
             setTimeout(() => setupCameraTracking(), 1000);
         }
-        const newLevel = this.levels.get(levelID.toLowerCase());
+        const newLevel = this.levels.get(targetId.toLowerCase());
         if (!newLevel) {
-            throw new Error(`Level with ID ${levelID} not found.`);
+            throw new Error(`Level with ID ${targetId} not found.`);
         }
         newLevel.active = true;
         this.activeLevel = newLevel;
         const serializationSystem = getSingletonComponent(SerializationSystem);
-        serializationSystem.saveLevel(levelID);
+        serializationSystem.saveLevel(targetId);
 
         //camera is currently broken
     }

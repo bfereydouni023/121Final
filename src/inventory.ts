@@ -10,6 +10,8 @@ export class Inventory implements SingletonComponent {
         for (const [itemID, quantity] of Object.entries(savedInventory)) {
             this.items.set(itemID, quantity);
         }
+
+        console.log("Inventory loaded:", this.items);
     }
 
     addItem(itemID: string, quantity: number = 1): void {
