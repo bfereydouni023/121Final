@@ -62,3 +62,29 @@ Finally, if the player can reason well enough, they can reach the end and win th
 
 ## Reflection
 For our F2 development, our team has decided to cut / postpone more features. Originally, we wanted to change the input of the ball from the primitive slingshot system to the more nuanced bowling system, but we decided that investing our time in fulfilling the requirements was a better usage of time. Additionally, we had planned on tile placements, but we discovered that this was significantly over-scoped, and that our existing golf-bowling game could have simpler and more elegant puzzles. However, unlike with F1, we have also added features, such as the button block, which is now a key part to the puzzle aspect of our game. Additionally, thanks to our playtesting session, we have learned that players would enjoy the ability to rotate the camera, so we are currently implementing the scaffolding for camera rotation. We also learned that the height of the walls in our game was just low enough to make it look like they were meant to be jumped over, so to communicate our intent better, we made the walls taller and reduced the likelihood of miscommunication with our design language. 
+
+## Dev Log 3
+
+## Selected requirements
+The options that we decided to satisfy are:
+
+Save system: We decided to go with a save system because it would fit in with our level select system that we had already decided on implementing. In addition to that, we had already worked on a persistence system with our inventory, so it was already going to be a streamlined development process
+
+
+Visual Themes: We went with a dark mode and light mode feature because our UI system was quite fleshed out and developing this feature would be in scope and intuitive.
+
+
+Touch screen: We went with touchscreen mode because Cole, our engine lead, knew about a streamlined way to develop and test touch controls on any browser. It ultimately was a relatively easy feature to implement.
+
+
+Language support: We went with language because our group was a surprisingly diverse group, not only would we feel comfortable with the three types of languages needed, but we would be able to confirm the accuracy of the translated text ourselves.
+
+
+## How we satisfied the software requirements
+ For our F3 requirements, we decided to choose requirements 3-6 from the provided list: save system, visual themes, touch screen and i18n + l10n (language option). Our game has a menu that can be accessed via touch screen input or mouse input by pressing a cog button on the top right or by pressing escape. This menu provides the player with multiple buttons: a language swap option where they can choose between english, farsi or mandarin, a restart  current level button that clears the players inventory and respawns any keys or walls the player may have interacted with, a light mode button that lets the player swap between light mode or dark mode - this button starts initially with whatever mode the players browser is set as - and a level select button. The level select button showcases the three levels that the game contains but the levels 2 and 3 are initially grayed out, they will become accessible once the player has completed the level. Meaning if the player finishes levels 1 and 2 and goes to level 3, they can open the menu and skip back to any of the levels they have cleared. Their progress is remembered so if the player refreshes the page, their level progressions will be stored and they will still be able to swap between the levels they progressed through. It unfortunately does not track if they had gotten a key before the game was refreshed or if the tab is fully closed.
+
+
+## Reflection
+
+For F3, we had planned to have reasonable goals in terms of scoping for our time frame. Even in spite of that, there were certain features we still had to cut. For example, the save system was imagined to not only include levels, but the progress the player made in that level. While the scaffolding for that implementation was made, we ended up prioritizing on other requirements. We also had to cut the camera rotation option that we intended to add in Dev Log 2 but due to scope and time issues we had to remove that option.
+Another example of a feature we didn’t manage to get to at the time of writing is a UX feature designed to combat player confusion. We wanted to include a bouncing text above the ball saying “click and hold!” or a text above keys or doors guiding the player to the goal. However, as the deadline approached, we decided to lower the priority of this non-requirement. 
