@@ -32,8 +32,9 @@ import { LevelManager } from "./levelManager";
 import type { MainCamera } from "./types";
 //import { Level1 } from "./levels/level1";
 //import { Level2 } from "./levels/level2";
+import { Level3 } from "./levels/level3";
 import createUIManager from "./uiManager";
-//import { rotateFollowLeft, rotateFollowRight } from "./utilities";
+//import { rotateFollowLeft, rotateFollowRight } from "./utilities";   //unused
 import {
     getLanguage,
     getLanguageLabel,
@@ -42,15 +43,10 @@ import {
     type SupportedLanguage,
     translate,
 } from "./languageSettings";
-//import { Level1 } from "./levels/level1";
-import { Level3 } from "./levels/level3";
-//import { createUIManager } from "./uiManager";
 
 const ui = createUIManager();
 // expose for other modules (Inventory, tests, etc.)
 window.ui = ui;
-
-// TUNABLE PARAMETERS]
 
 // Ensure Rapier is loaded before proceeding
 await RAPIER.init();
