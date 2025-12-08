@@ -7,11 +7,11 @@ import {
     RigidbodyComponent,
     ScriptComponent,
 } from "../components";
+import { getSingletonComponent } from "../objectSystem";
+import { LevelManager } from "../levelManager";
 import { Level1 } from "../levels/level1";
 import { Level2 } from "../levels/level2";
 import { Level3 } from "../levels/level3";
-import { getSingletonComponent } from "../objectSystem";
-import { LevelManager } from "../levelManager";
 
 /**
  * createGoal(scene, position, size)
@@ -66,65 +66,26 @@ export function createGoal(
 
     script.onCollisionEnter = (other) => {
         if (triggered) return;
-        // match doorScript convention: other.name === "ball"
-        if (!other || other.name !== "ball") return;
-
         triggered = true;
 
-        // try to detect current level (hard-coded mapping for Level1 -> Level2 -> Level3)
-        type LMLike = {
-            current?: { id?: string };
-            currentIndex?: number;
-            levels?: Array<{ id?: string }>;
-        };
-        const lmRaw = getSingletonComponent(LevelManager) as unknown as
-            | LMLike
-            | undefined;
-
-        let currentId: string | undefined = undefined;
-        if (lmRaw) {
-            currentId = lmRaw.current?.id;
-            // fallback to index-based lookup
-            if (
-                !currentId &&
-                typeof lmRaw.currentIndex === "number" &&
-                Array.isArray(lmRaw.levels)
-            ) {
-                currentId = lmRaw.levels[lmRaw.currentIndex]?.id;
-            }
-        }
-
-        // last-resort: check a global hint if present
-        const winHint = window as unknown as { currentLevelId?: string };
-        currentId = currentId ?? winHint.currentLevelId;
-
-        let nextId: string | undefined;
+        // Query the LevelManager singleton for the active level id (robust)
+        const lm = getSingletonComponent(LevelManager);
+        const currentId = lm?.currentLevelId ?? undefined;
+        let nextId: string;
         if (currentId === Level1.name) nextId = Level2.name;
         else if (currentId === Level2.name) nextId = Level3.name;
         else if (currentId === Level3.name)
-            nextId = Level1.name; // wrap to Level1
-        else nextId = Level2.name; // default fallback
+            nextId = Level1.name; // wrap
+        else nextId = Level2.name; // sensible default
 
-        // request deferred level swap outside physics loop
-        window.dispatchEvent(
-            new CustomEvent("request:level-swap", {
-                detail: { id: nextId },
-            }),
-        );
         console.debug(
-            "[Goal] requested deferred swap to",
-            nextId,
-            "(detected current:",
+            "[Goal] currentLevelId:",
             currentId,
-            ")",
+            "-> requesting swap to",
+            nextId,
         );
 
-        // visual feedback
-        try {
-            (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-        } catch (err) {
-            console.debug("[Goal] visual feedback failed", err);
-        }
+        lm?.swapToLevel(nextId);
     };
 
     script.onCollisionExit = () => {

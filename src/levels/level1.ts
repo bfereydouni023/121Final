@@ -11,8 +11,6 @@ import {
 } from "../objectSystem";
 import { createGroundBatch } from "../objects/groundScript";
 import { createKey } from "../objects/keyScript";
-import { createDoor } from "../objects/doorScript";
-//import { createBlock } from "./block";
 import { RespawnSystem } from "../respawnSystem";
 
 export class Level1 extends BaseLevel {

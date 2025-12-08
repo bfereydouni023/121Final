@@ -55,6 +55,8 @@ export type UIManager = {
     onThemeChange: (
         listener: (mode: "light" | "dark", colors: HUDColors) => void,
     ) => void;
+    appearKeyEmoji: () => void;
+    disappearKeyEmoji: () => void;
     dispose: () => void;
 };
 
@@ -198,6 +200,11 @@ export function createUIManager(
     let keyAnimEl: HTMLDivElement | null = null;
     let keyAnimTimers: number[] = [];
 
+    // animation timing constants (shared)
+    const APPEAR_MS = 320;
+    const HOLD_MS = 900;
+    const DISAPPEAR_MS = 420;
+
     function createKeyEmojiElement(): HTMLDivElement {
         const el = document.createElement("div");
         el.textContent = "🔑";
@@ -243,13 +250,8 @@ export function createUIManager(
         keyAnimTimers = [];
     }
 
-    function animateKeyEmoji() {
-        // timings (ms)
-        const APPEAR_MS = 320;
-        const HOLD_MS = 900;
-        const DISAPPEAR_MS = 420;
-
-        // start clean
+    // Exposed: show the key emoji (appear). Does not auto-hide.
+    function appearKeyEmoji() {
         clearKeyTimers();
         try {
             if (keyAnimEl && keyAnimEl.parentElement)
@@ -263,33 +265,37 @@ export function createUIManager(
         // Force layout then perform appear transition
         requestAnimationFrame(() => {
             if (!keyAnimEl) return;
-            // set appear transition timing
             keyAnimEl.style.transition = `transform ${APPEAR_MS}ms cubic-bezier(.2,.8,.2,1), opacity ${APPEAR_MS}ms ease`;
-            // final visible state for appear
             keyAnimEl.style.opacity = "1";
             keyAnimEl.style.transform = "translateY(0px) scale(1)";
         });
+    }
 
-        // After appear + hold, run disappear animation
+    // Exposed: hide the key emoji (disappear). Removes element after animation.
+    function disappearKeyEmoji() {
+        if (!keyAnimEl) return;
+        // configure disappear timing
+        keyAnimEl.style.transition = `transform ${DISAPPEAR_MS}ms cubic-bezier(.22,.9,.3,1), opacity ${DISAPPEAR_MS}ms ease`;
+        keyAnimEl.style.opacity = "0";
+        keyAnimEl.style.transform = "translateY(-18px) scale(0.85)";
+
+        const remover = window.setTimeout(() => {
+            try {
+                if (keyAnimEl && keyAnimEl.parentElement)
+                    keyAnimEl.parentElement.removeChild(keyAnimEl);
+            } catch (err) {
+                console.error("Error removing keyAnimEl:", err);
+            }
+            keyAnimEl = null;
+        }, DISAPPEAR_MS + 24);
+        keyAnimTimers.push(remover);
+    }
+
+    // Convenience: appear then auto-hide after APPEAR_MS + HOLD_MS
+    function animateKeyEmoji() {
+        appearKeyEmoji();
         const disappearStarter = window.setTimeout(() => {
-            if (!keyAnimEl) return;
-            // configure disappear timing
-            keyAnimEl.style.transition = `transform ${DISAPPEAR_MS}ms cubic-bezier(.22,.9,.3,1), opacity ${DISAPPEAR_MS}ms ease`;
-            // target disappear state: slide up and fade out
-            keyAnimEl.style.opacity = "0";
-            keyAnimEl.style.transform = "translateY(-18px) scale(0.85)";
-
-            // remove element after the disappear transition completes
-            const remover = window.setTimeout(() => {
-                try {
-                    if (keyAnimEl && keyAnimEl.parentElement)
-                        keyAnimEl.parentElement.removeChild(keyAnimEl);
-                } catch (err) {
-                    console.error("Error removing keyAnimEl:", err);
-                }
-                keyAnimEl = null;
-            }, DISAPPEAR_MS + 24);
-            keyAnimTimers.push(remover);
+            disappearKeyEmoji();
         }, APPEAR_MS + HOLD_MS);
         keyAnimTimers.push(disappearStarter);
     }
@@ -450,6 +456,8 @@ export function createUIManager(
         setHUDMode,
         createModeToggleButton,
         onThemeChange,
+        appearKeyEmoji,
+        disappearKeyEmoji,
         showOverlay,
         hideOverlay,
         clearButtons,

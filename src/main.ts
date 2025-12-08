@@ -30,10 +30,10 @@ import {
 import { TweenManager } from "./tweenManager";
 import { LevelManager } from "./levelManager";
 import type { MainCamera } from "./types";
-import { Level1 } from "./levels/level1";
+//import { Level1 } from "./levels/level1";
 //import { Level2 } from "./levels/level2";
 import createUIManager from "./uiManager";
-import { rotateFollowLeft, rotateFollowRight } from "./utilities";
+//import { rotateFollowLeft, rotateFollowRight } from "./utilities";
 import {
     getLanguage,
     getLanguageLabel,
@@ -42,6 +42,13 @@ import {
     type SupportedLanguage,
     translate,
 } from "./languageSettings";
+//import { Level1 } from "./levels/level1";
+import { Level3 } from "./levels/level3";
+//import { createUIManager } from "./uiManager";
+
+const ui = createUIManager();
+// expose for other modules (Inventory, tests, etc.)
+window.ui = ui;
 
 // TUNABLE PARAMETERS]
 
@@ -175,8 +182,6 @@ const levelManager = getSingletonComponent(LevelManager);
 input.setPointerElement(renderer.domElement);
 
 // --- UI: bottom-center arrow buttons (left / right) ---
-const ui = createUIManager();
-// move the UI container to bottom-center and layout buttons horizontally
 ui.container.style.left = "50%";
 ui.container.style.right = "auto";
 ui.container.style.top = "auto";
@@ -187,38 +192,38 @@ ui.container.style.alignItems = "center";
 ui.container.style.justifyContent = "center";
 ui.container.style.gap = "12px";
 
-const btnStyle: Partial<CSSStyleDeclaration> = {
-    width: "56px",
-    height: "56px",
-    borderRadius: "28px",
-    fontSize: "24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "rgba(32,32,32,0.95)", // darker fill for better contrast
-    color: "#ffffff",
-    border: "1px solid rgba(0,0,0,0.6)",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
-};
+// const btnStyle: Partial<CSSStyleDeclaration> = {
+//     width: "56px",
+//     height: "56px",
+//     borderRadius: "28px",
+//     fontSize: "24px",
+//     display: "flex",
+//     alignItems: "center",
+//     justifyContent: "center",
+//     background: "rgba(32,32,32,0.95)", // darker fill for better contrast
+//     color: "#ffffff",
+//     border: "1px solid rgba(0,0,0,0.6)",
+//     boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
+// };
 
-ui.createButton(
-    "btn-left",
-    "◀",
-    () => {
-        console.debug("UI: left button clicked");
-        rotateFollowLeft();
-    },
-    { ariaLabel: "Move Left", style: btnStyle },
-);
-ui.createButton(
-    "btn-right",
-    "▶",
-    () => {
-        console.debug("UI: right button clicked");
-        rotateFollowRight();
-    },
-    { ariaLabel: "Move Right", style: btnStyle },
-);
+// ui.createButton(
+//     "btn-left",
+//     "◀",
+//     () => {
+//         console.debug("UI: left button clicked");
+//         rotateFollowLeft();
+//     },
+//     { ariaLabel: "Move Left", style: btnStyle },
+// );
+// ui.createButton(
+//     "btn-right",
+//     "▶",
+//     () => {
+//         console.debug("UI: right button clicked");
+//         rotateFollowRight();
+//     },
+//     { ariaLabel: "Move Right", style: btnStyle },
+// );
 
 //Escape menu: restart + light/dark toggle
 const escapeMenuOverlay = document.createElement("div");
@@ -422,7 +427,7 @@ window.addEventListener("request:level-swap", (ev: Event) => {
     }, 0);
 });
 
-levelManager.swapToLevel(Level1.name);
+levelManager.swapToLevel(Level3.name);
 renderer.setAnimationLoop(gameLoop);
 
 function setupCamera(): MainCamera {
