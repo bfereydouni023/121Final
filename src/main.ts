@@ -30,8 +30,8 @@ import {
 import { TweenManager } from "./tweenManager";
 import { LevelManager } from "./levelManager";
 import type { MainCamera } from "./types";
-import { Level1 } from "./levels/level1";
-//import { Level2 } from "./levels/level2";
+//import { Level1 } from "./levels/level1";
+import { Level3 } from "./levels/level3";
 import { createUIManager } from "./uiManager";
 
 const ui = createUIManager();
@@ -355,7 +355,7 @@ window.addEventListener("request:level-swap", (ev: Event) => {
     }, 0);
 });
 
-levelManager.swapToLevel(Level1.name);
+levelManager.swapToLevel(Level3.name);
 renderer.setAnimationLoop(gameLoop);
 
 function setupCamera(): MainCamera {

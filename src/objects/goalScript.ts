@@ -74,10 +74,16 @@ export function createGoal(
         let nextId: string;
         if (currentId === Level1.name) nextId = Level2.name;
         else if (currentId === Level2.name) nextId = Level3.name;
-        else if (currentId === Level3.name) nextId = Level1.name; // wrap
+        else if (currentId === Level3.name)
+            nextId = Level1.name; // wrap
         else nextId = Level2.name; // sensible default
 
-        console.debug("[Goal] currentLevelId:", currentId, "-> requesting swap to", nextId);
+        console.debug(
+            "[Goal] currentLevelId:",
+            currentId,
+            "-> requesting swap to",
+            nextId,
+        );
 
         lm?.swapToLevel(nextId);
     };
