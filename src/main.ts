@@ -265,6 +265,7 @@ escapeMenuButtons.style.flexDirection = "column";
 escapeMenuButtons.style.gap = "12px";
 
 //create a button on screen so setting menu can get accessed through touch screen input as well as esc key
+
 const settingsButton = document.createElement("button");
 settingsButton.type = "button";
 settingsButton.textContent = "⚙️";
@@ -391,10 +392,6 @@ function setEscapeMenuVisible(visible: boolean) {
     isEscapeMenuOpen = visible;
 }
 
-escapeMenuOverlay.addEventListener("click", (event) => {
-    if (event.target === escapeMenuOverlay) setEscapeMenuVisible(false);
-});
-
 escapeMenuOverlay.addEventListener("pointerdown", (event) => {
     if (event.target === escapeMenuOverlay) setEscapeMenuVisible(false);
 });
@@ -403,11 +400,10 @@ const toggleEscapeMenu = () => {
     setEscapeMenuVisible(!isEscapeMenuOpen);
 };
 
-settingsButton.addEventListener("pointerup", (event) => {
+settingsButton.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     toggleEscapeMenu();
 });
-
 settingsButton.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
