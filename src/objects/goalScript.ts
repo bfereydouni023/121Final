@@ -7,7 +7,11 @@ import {
     RigidbodyComponent,
     ScriptComponent,
 } from "../components";
+import { getSingletonComponent } from "../objectSystem";
+import { LevelManager } from "../levelManager";
+import { Level1 } from "../levels/level1";
 import { Level2 } from "../levels/level2";
+import { Level3 } from "../levels/level3";
 
 /**
  * createGoal(scene, position, size)
@@ -53,51 +57,67 @@ export function createGoal(
     // add collider as sensor (second param `true` indicates sensor in this project convention)
     rb.addCollider(
         RAPIER.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2),
-        true,
+        false,
     );
 
-    // behavior: check each physics tick whether the ball is inside the goal box
+    // behavior: use collision callbacks instead of scanning the scene each physics tick
     const script = goal.addComponent(ScriptComponent);
     let triggered = false;
-    script.onPhysicsUpdate = () => {
+
+    script.onCollisionEnter = () => {
         if (triggered) return;
+        triggered = true;
 
-        // find the ball visually in the scene
-        let ballObj: THREE.Object3D | null = null;
-        scene.traverse((o) => {
-            if (ballObj) return;
-            const ud = o.userData;
-            if (ud && ud.type === "ball") ballObj = o;
-        });
-        if (!ballObj) return;
+        // Query the LevelManager singleton for the active level id (robust)
+        const lm = getSingletonComponent(LevelManager);
+        const currentId = lm?.currentLevelId ?? undefined;
+        let nextId: string;
+        if (currentId === Level1.name) nextId = Level2.name;
+        else if (currentId === Level2.name) nextId = Level3.name;
+        else if (currentId === Level3.name)
+            nextId = Level1.name; // wrap
+        else nextId = Level2.name; // sensible default
 
-        // compute goal box and test containment
-        const box = new THREE.Box3().setFromObject(m.mesh);
-        const ballPos = (ballObj as THREE.Object3D).getWorldPosition(
-            new THREE.Vector3(),
+        console.debug(
+            "[Goal] currentLevelId:",
+            currentId,
+            "-> requesting swap to",
+            nextId,
         );
-        if (box.containsPoint(ballPos)) {
-            triggered = true;
-            // dispatch a generic event so UI / main can listen and transition to a victory screen
-            // window.dispatchEvent(
-            //     new CustomEvent("game:victory", {
-            //         detail: { goalId: goal.id },
-            //     }),
-            // );
 
-            // Do NOT call swapToLevel directly from the physics step.
-            // Instead request a deferred swap handled by main.ts so the swap runs outside the physics loop.
+        // notify the app that this level was completed / should be unlocked
+        try {
             window.dispatchEvent(
-                new CustomEvent("request:level-swap", {
-                    detail: { id: Level2.name },
+                new CustomEvent("level:unlock", {
+                    detail: { currentLevelId: currentId },
                 }),
             );
-            console.debug("[Goal] requested deferred swap to", Level2.name);
-
-            // optional: visual feedback
-            (m.mesh.material as THREE.MeshStandardMaterial).opacity = 0.5;
-            //onsole.log("[Goal] victory triggered for goal", goal.id);
+        } catch (err) {
+            console.warn("[Goal] failed to dispatch level:unlock event:", err);
         }
+
+        // If we're on Level3, treat this as the final victory and trigger the victory flow.
+        if (currentId === Level3.name) {
+            try {
+                window.dispatchEvent(
+                    new CustomEvent("game:victory", {
+                        detail: { currentLevelId: currentId },
+                    }),
+                );
+            } catch (err) {
+                console.warn(
+                    "[Goal] failed to dispatch game:victory for final level:",
+                    err,
+                );
+            }
+            return;
+        }
+
+        lm?.swapToLevel(nextId);
+    };
+
+    script.onCollisionExit = () => {
+        // no-op for now; kept for symmetry and future use
     };
 
     // cleanup if system supports disposal

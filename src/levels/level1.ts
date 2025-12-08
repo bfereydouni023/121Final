@@ -1,17 +1,17 @@
 import * as THREE from "three";
-import * as RAPIER from "@dimforge/rapier3d-compat";
-import {
-    TransformComponent,
-    MeshComponent,
-    RigidbodyComponent,
-} from "../components";
+import { TransformComponent, PickupComponent } from "../components";
 import { createBall } from "../objects/ballScript";
 import { createGoal } from "../objects/goalScript";
-import { createBlock } from "./block";
 import { scene } from "../globals";
 import { BaseLevel } from "./baselevel";
-import { createGameObject, destroyGameObject } from "../objectSystem";
-import { getObjectByName } from "../objectSystem";
+import {
+    destroyGameObject,
+    getObjectByName,
+    getSingletonComponent,
+} from "../objectSystem";
+import { createGroundBatch } from "../objects/groundScript";
+import { createKey } from "../objects/keyScript";
+import { RespawnSystem } from "../respawnSystem";
 
 export class Level1 extends BaseLevel {
     constructor() {
@@ -21,116 +21,83 @@ export class Level1 extends BaseLevel {
     }
 
     protected createObjects(): void {
-        //#region  Create the ground -------------------------------------------
-        const ground = createGameObject();
-        const gT = ground.addComponent(TransformComponent);
-        gT.position = { x: 0, y: -1, z: -55 };
-        gT.rotation = { x: 0, y: 0, z: 0, w: 1 };
-        const gMesh = ground.addComponent(MeshComponent);
+        //#region Create T-shaped ground using modular tiles -----------------
+        // grid to create (gx, gy) relative to a base offset in world space
+        // T shape: center (0,0) with stem at (0,1) and arms at (1,1) and (-1,1)
+        const tileSize = 15; // world units per tile (adjustable)
+        const tileHeight = 5; // thickness of each tile
+        const baseOffset = { x: 0, y: 0, z: -15 }; // match previous ground placement
 
-        // rectangular prism dimensions
-        const width = 50;
-        const height = 5; // thickness / height of the prism
-        const depth = 150;
+        const coords: Array<[number, number]> = [
+            [0, 0],
+            [0, 1],
+            [0, 2],
+            [0, 3],
+            [1, 3],
+            [2, 3],
+            [2, 4],
+            [2, 5],
+            [1, 5],
+            [0, 5],
+            [0, 6],
+            [0, 7],
+            [0, 8],
+        ];
 
-        gMesh.mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(width, height, depth),
-            new THREE.MeshStandardMaterial({ color: 0x808080 }),
-        );
-        // position the box so its top surface is at y = 0 (adjust if you want center at y=0)
-        gMesh.mesh.position.set(
-            gT.position.x,
-            gT.position.y - height / 2,
-            gT.position.z,
-        );
-        // tag ground mesh so raycast code can identify it
-        gMesh.mesh.userData = gMesh.mesh.userData || {};
-        gMesh.mesh.userData.type = "ground";
-        gMesh.mesh.userData.gameObject = ground;
-        scene.add(gMesh.mesh);
+        // create tiles + perimeter walls in local (grid) coordinates
+        const created = createGroundBatch(coords, {
+            tileSize,
+            height: tileHeight,
+            color: 0x808080,
+            buildWalls: true,
+            wallHeight: 5,
+            wallThickness: 1,
+            wallColor: 0x303030,
+        });
 
-        const gRb = ground.addComponent(RigidbodyComponent);
-        // make ground fixed/static so it doesn't fall from gravity
-        gRb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        // place rigidbody to match the TransformComponent position
-        gRb.rigidbody.setTranslation(
-            { x: gT.position.x, y: gT.position.y, z: gT.position.z },
-            true,
-        );
-        // collider half-extents must match half the box dimensions
-        gRb.addCollider(
-            RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2),
-            false,
-        );
+        // apply baseOffset to the created tile GameObjects so they sit at the desired world location
+        for (const go of created) {
+            const tf = go.getComponent(TransformComponent)!;
+            tf.position.x += baseOffset.x;
+            tf.position.y += baseOffset.y;
+            tf.position.z += baseOffset.z;
+            this.gameObjects.set(go.name, go);
+        }
 
-        this.gameObjects.set(ground.name, ground);
+        // move any perimeter wall meshes created by createGroundBatch by the same baseOffset
+        // (walls are added to the scene with mesh.userData.type === "perimeterWall")
+        for (const child of scene.children) {
+            if (child && child.userData?.type === "perimeterWall") {
+                child.position.x += baseOffset.x;
+                child.position.y += baseOffset.y;
+                child.position.z += baseOffset.z;
+            }
+        }
 
         //#endregion --------------------------------------------------------
 
+        // helper: grid (gx,gy) -> world position (centers tile). Y is top surface (baseOffset.y).
+        const gridToWorld = (gx: number, gy: number, yOffset = 1) =>
+            new THREE.Vector3(
+                baseOffset.x + gx * tileSize,
+                baseOffset.y + yOffset,
+                baseOffset.z - gy * tileSize,
+            );
+
         //#region  Create the goal -------------------------------------------
-        const goalPosition = new THREE.Vector3(
-            0,
-            3,
-            gT.position.z - depth / 2 + 6,
-        ); // near far end of ground
+        const goalPosition = gridToWorld(0, 8, 1); // example using helper
         const goalSize = new THREE.Vector3(4, 4, 4);
         const goal = createGoal(scene, goalPosition, goalSize);
         this.gameObjects.set(goal.name, goal);
         //#endregion
 
-        //#region  Create simple level ---------------------------------------
+        //#region  Create simple level --------------------------------------
 
-        //Walls
-        const wallLeft = createBlock(
-            scene,
-            new THREE.Vector3(-20, 3, gT.position.z),
-            new THREE.Vector3(3, 6, depth),
-            true,
-        );
-        const wallRight = createBlock(
-            scene,
-            new THREE.Vector3(20, 3, gT.position.z),
-            new THREE.Vector3(3, 6, depth),
-            true,
-        );
-        //Place this on the far end to prevent ball from going out of bounds
-        const wallTop = createBlock(
-            scene,
-            new THREE.Vector3(0, 3, gT.position.z - depth / 2 + 1.5),
-            new THREE.Vector3(width, 6, 3),
-            true,
-        );
-        const wallBottom = createBlock(
-            scene,
-            new THREE.Vector3(0, 3, gT.position.z + depth / 2 - 1.5),
-            new THREE.Vector3(width, 6, 3),
-            true,
-        );
+        // Create a Key centered on the tile at grid coords [2,3]
+        const keyPosition = gridToWorld(0, -25, 1); // center of tile [2,3], 1 unit above ground
+        const key = createKey(keyPosition, "gold_key");
 
-        this.gameObjects.set(wallLeft.name, wallLeft);
-        this.gameObjects.set(wallRight.name, wallRight);
-        this.gameObjects.set(wallTop.name, wallTop);
-        this.gameObjects.set(wallBottom.name, wallBottom);
-
-        //Create blocks as obstacles (Make a zigzag pattern)
-        createBlock(
-            scene,
-            new THREE.Vector3(-8, 3, gT.position.z + 30),
-            new THREE.Vector3(24, 6, 6),
-            true,
-        );
-        createBlock(
-            scene,
-            new THREE.Vector3(8, 3, gT.position.z + 0),
-            new THREE.Vector3(24, 6, 6),
-            true,
-        );
-        createBlock(
-            scene,
-            new THREE.Vector3(-8, 3, gT.position.z - 30),
-            new THREE.Vector3(24, 6, 6),
-            true,
-        );
+        this.gameObjects.set(key.name, key);
 
         //#endregion --------------------------------------------------------
 
@@ -141,10 +108,17 @@ export class Level1 extends BaseLevel {
     }
 
     protected onActivate(): void {
-        //#region  Create the ball -------------------------------------------
-        const ball = createBall(scene);
+        const startPosition = new THREE.Vector3(0, 0, -15);
+        const ball = createBall(scene, startPosition);
+        getSingletonComponent(RespawnSystem).respawnPoint.position =
+            startPosition;
         this.gameObjects.set(ball.name, ball);
-        //#endregion --------------------------------------------------------
+
+        //Goalscript doesn't work if this code is deleted
+        this.gameObjects
+            .get("gold_key")!
+            .getComponent(PickupComponent)!
+            .addTriggerObject(ball);
     }
 
     protected onDeactivate(): void {

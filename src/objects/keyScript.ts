@@ -35,7 +35,8 @@ export function createKey(position: THREE.Vector3, keyId: string = "gold_key") {
 
     const rb = go.addComponent(RigidbodyComponent);
     rb.rigidbody.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-    rb.addCollider(RAPIER.ColliderDesc.ball(1), false);
+    rb.addCollider(RAPIER.ColliderDesc.ball(2), false);
+    rb.collider.setSensor(true);
 
     const pickup = go.addComponent(PickupComponent);
     // debug helper to confirm collisions are delivered to components
@@ -47,86 +48,12 @@ export function createKey(position: THREE.Vector3, keyId: string = "gold_key") {
         );
     };
 
-    // allow pressing "9" to pick up this key (useful for testing)
-    let pickedByKey = false;
-    const doPickup = () => {
-        if (pickedByKey) return;
-        pickedByKey = true;
-        try {
-            const inv = getSingletonComponent(Inventory);
-            inv.addItem(keyId, 1);
-            console.debug(`[Key] picked up ${keyId} via keypress`);
-        } catch (err) {
-            console.warn("[Key] failed to add to inventory (keypress):", err);
-        }
-        // remove listener before destroying to avoid leaks
-        try {
-            window.removeEventListener("keydown", onKey);
-        } catch (err) {
-            console.warn(
-                "[Key] failed to remove keydown listener (keypress):",
-                err,
-            );
-        }
-        try {
-            destroyGameObject(go);
-        } catch (err) {
-            console.warn("[Key] failed to destroy key object (keypress):", err);
-            try {
-                mesh.visible = false;
-            } catch (err) {
-                console.warn("[Key] failed to hide mesh (keypress):", err);
-            }
-        }
-    };
-    const onKey = (ev: KeyboardEvent) => {
-        if (ev.key === "9") {
-            doPickup();
-        }
-    };
-    window.addEventListener("keydown", onKey);
-    dbg.onDispose = () => {
-        try {
-            window.removeEventListener("keydown", onKey);
-        } catch (err) {
-            console.warn(
-                "[Key] failed to remove keydown listener (dispose):",
-                err,
-            );
-        }
-    };
-
     // onPickup: add to inventory and destroy the key gameobject
-    pickup.onPickup = (other) => {
-        try {
-            const inv = getSingletonComponent(Inventory);
-            inv.addItem(keyId, 1);
-            console.debug(
-                `[Key] picked up ${keyId} by ${other?.name ?? "unknown"}`,
-            );
-        } catch (err) {
-            console.warn("[Key] failed to add to inventory:", err);
-        }
-        try {
-            // ensure keypress listener removed
-            try {
-                window.removeEventListener("keydown", onKey);
-            } catch (err) {
-                console.warn(
-                    "[Key] failed to remove keydown listener (pickup):",
-                    err,
-                );
-            }
-            destroyGameObject(go);
-        } catch (err) {
-            console.warn("[Key] failed to destroy key object:", err);
-            // fallback: hide visual
-            try {
-                mesh.visible = false;
-            } catch (err) {
-                console.warn("[Key] failed to hide mesh (pickup):", err);
-            }
-        }
+    pickup.onPickup = (_other) => {
+        const inv = getSingletonComponent(Inventory);
+        inv.addItem(keyId, 1);
+        destroyGameObject(go);
+        mesh.visible = false;
     };
 
     return go;

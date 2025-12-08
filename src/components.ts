@@ -94,11 +94,6 @@ export class TransformComponent extends BaseComponent {
     constructor(gameObject: GameObject) {
         super(gameObject);
     }
-
-    setTranslation(transform: Transform) {
-        this.transform = transform;
-        this.dirty = true;
-    }
 }
 
 export class RigidbodyComponent extends BaseComponent {
