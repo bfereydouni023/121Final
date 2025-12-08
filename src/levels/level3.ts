@@ -47,7 +47,7 @@ export class Level3 extends BaseLevel {
 
             //1st Path
             [2, 2],
-            [2, 1], 
+            [2, 1],
             [3, 1],
             [4, 1], //key at [4, 1]
 
@@ -96,9 +96,6 @@ export class Level3 extends BaseLevel {
             [-2, 15],
             [-2, 16],
             [-2, 17], //Goal at [-2, 17]
-
-
-
         ];
 
         // create tiles + perimeter walls in local (grid) coordinates
@@ -161,7 +158,12 @@ export class Level3 extends BaseLevel {
         // Create a Door at grid coords [2, 4]
         const doorPos_2_4 = gridToWorld(2, 4, 1);
         this.registerRespawnable("door_2_4", () => {
-            const d = createDoor(doorPos_2_4.clone(), new THREE.Vector3(this.tileSize - 0.5, 5, 1), "gold_key", 0);
+            const d = createDoor(
+                doorPos_2_4.clone(),
+                new THREE.Vector3(this.tileSize - 0.5, 5, 1),
+                "gold_key",
+                0,
+            );
             this.gameObjects.set("door_2_4", d);
             return d;
         });
@@ -177,7 +179,12 @@ export class Level3 extends BaseLevel {
         // Create a Door at grid coords [1, 6]
         const doorPos_1_6 = gridToWorld(1, 6, 1);
         this.registerRespawnable("door_1_6", () => {
-            const d = createDoor(doorPos_1_6.clone(), new THREE.Vector3(this.tileSize - 0.5, 5, 1), "gold_key", 90);
+            const d = createDoor(
+                doorPos_1_6.clone(),
+                new THREE.Vector3(this.tileSize - 0.5, 5, 1),
+                "gold_key",
+                90,
+            );
             this.gameObjects.set("door_1_6", d);
             return d;
         });
@@ -193,11 +200,15 @@ export class Level3 extends BaseLevel {
         // Create a Door at grid coords [0, 10]
         const doorPos_0_10 = gridToWorld(0, 10, 1);
         this.registerRespawnable("door_0_10", () => {
-            const d = createDoor(doorPos_0_10.clone(), new THREE.Vector3(this.tileSize - 0.5, 5, 1), "gold_key", 0);
+            const d = createDoor(
+                doorPos_0_10.clone(),
+                new THREE.Vector3(this.tileSize - 0.5, 5, 1),
+                "gold_key",
+                0,
+            );
             this.gameObjects.set("door_0_10", d);
             return d;
         });
-
 
         //#endregion --------------------------------------------------------
 
