@@ -56,11 +56,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     rbComp.collider.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min);
     rbComp.collider.setRestitution(0.3);
 
-    // Ball physics constants (bowling ball like behavior)
-    const rollingFrictionCoeff = 0.015; // rolling resistance coefficient
-    const spinDampingCoeff = 0.98; // spin damping per frame
-    const spinToVelCoupling = 0.5; // how much spin affects linear velocity (0-1)
-
     // Custom tracking for spin and physics state
     const ballState = {
         angularVelocity: new THREE.Vector3(0, 0, 0), // spin axis and magnitude
@@ -71,87 +66,10 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
 
     // Script / behavior component - adds drag-to-launch interactions
     const script = ball.addComponent(ScriptComponent);
+    // const throwScript = ball.addComponent(ScriptComponent);
 
-    script.onPhysicsUpdate = () => {
-        // Cast ray downward to check if grounded
-        const hit = world.castRayAndGetNormal(
-            new RAPIER.Ray(rbComp.rigidbody.translation(), {
-                x: 0,
-                y: -1,
-                z: 0,
-            }),
-            10,
-            true,
-            undefined,
-            undefined,
-            rbComp.collider,
-        );
-
-        ballState.isGrounded = hit !== null;
-        if (!ballState.isGrounded) {
-            // In air: apply light damping to angular velocity
-            ballState.angularVelocity.multiplyScalar(spinDampingCoeff);
-            return;
-        }
-
-        // Get current linear velocity
-        const linVel = rbComp.rigidbody.linvel();
-        const linVelVec = new THREE.Vector3(linVel.x, linVel.y, linVel.z);
-        const linSpeed = linVelVec.length();
-        printToScreen(`Speed: ${linSpeed.toFixed(2)} m/s`, "speed", 1000);
-        printToScreen(
-            `Spin: ${ballState.angularVelocity.length().toFixed(2)} rad/s`,
-            "spin",
-            1000,
-        );
-
-        // Calculate ideal rolling velocity from spin (v = ω × r)
-        // For a ball spinning with angular velocity ω, surface velocity should be ω*r
-        const spinMagnitude = ballState.angularVelocity.length();
-        const idealLinearSpeed = spinMagnitude * radius;
-
-        // Blend current velocity toward spin-induced velocity
-        if (spinMagnitude > 0.01) {
-            // Get direction perpendicular to spin axis (velocity should be perpendicular to spin)
-            const velDir =
-                linVelVec.length() > 0.01
-                    ? linVelVec.clone().normalize()
-                    : new THREE.Vector3(1, 0, 0);
-
-            // Apply spin coupling effect
-            const targetVel = velDir
-                .clone()
-                .multiplyScalar(
-                    linSpeed * (1 - spinToVelCoupling) +
-                        idealLinearSpeed * spinToVelCoupling,
-                );
-
-            rbComp.rigidbody.setLinvel(targetVel, true);
-        }
-
-        // Apply rolling friction (rolling resistance)
-        if (linSpeed > 0.01) {
-            const frictionCoeff = rollingFrictionCoeff * 9.81; // rolling resistance deceleration
-            const frictionAccel = Math.max(
-                0,
-                linSpeed - frictionCoeff * world.timestep,
-            );
-            const frictionDir = linVelVec.clone().normalize();
-            const newVel = frictionDir
-                .clone()
-                .multiplyScalar(Math.max(0, frictionAccel));
-            rbComp.rigidbody.setLinvel(newVel, true);
-        }
-
-        // Apply damping to spin
-        ballState.angularVelocity.multiplyScalar(spinDampingCoeff);
-
-        // Sleep ball if very slow to prevent endless sliding
-        if (linSpeed < 0.05 && spinMagnitude < 0.05) {
-            rbComp.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-            ballState.angularVelocity.set(0, 0, 0);
-        }
-    };
+    script.onPhysicsUpdate = () =>
+        applyRollingDynamics(rbComp, ballState, radius);
 
     // Raycaster + plane helpers for mapping pointer -> world at the ball depth
     const raycaster = new THREE.Raycaster();
@@ -366,6 +284,24 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
 
         rbComp.rigidbody.applyImpulse(impulse, true);
 
+        // Apply spin based on drag motion
+        // The spin axis should be perpendicular to the direction of motion
+        // Drag left/right creates spin around Y axis, drag forward/backward creates spin around Z/X axis
+        const spinStrength = dragVec.length() * 2; // spin magnitude proportional to drag distance
+
+        // Create spin perpendicular to drag direction for realistic rolling
+        if (dragVec.length() > 0.1) {
+            // Spin axis is perpendicular to drag vector in horizontal plane
+            const perpDir = new THREE.Vector3(
+                -dragVec.z,
+                0,
+                dragVec.x,
+            ).normalize();
+            ballState.angularVelocity
+                .copy(perpDir)
+                .multiplyScalar(spinStrength);
+        }
+
         dragging = false;
         activePointerId = null;
         // hide the indicator on release
@@ -411,5 +347,96 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     return ball;
 }
 
-// moved three/examples type declarations to an ambient .d.ts file at:
-// src/types/three-line2.d.ts
+function applyRollingDynamics(
+    rbComp: RigidbodyComponent,
+    ballState: {
+        angularVelocity: THREE.Vector3; // spin axis and magnitude
+        lastFrameVelocity: THREE.Vector3;
+        isGrounded: boolean;
+        framesSinceLastVelocity: number;
+    },
+    radius: number,
+): void {
+    // Ball physics constants (bowling ball like behavior)
+    const rollingFrictionCoeff = 0.015; // rolling resistance coefficient
+    const spinDampingCoeff = 0.98; // spin damping per frame
+    const spinToVelCoupling = 0.5; // how much spin affects linear velocity (0-1)
+    // Cast ray downward to check if grounded
+    const hit = world.castRayAndGetNormal(
+        new RAPIER.Ray(rbComp.rigidbody.translation(), {
+            x: 0,
+            y: -1,
+            z: 0,
+        }),
+        10,
+        true,
+        undefined,
+        undefined,
+        rbComp.collider,
+    );
+
+    ballState.isGrounded = hit !== null;
+    if (!ballState.isGrounded) {
+        // In air: apply light damping to angular velocity
+        ballState.angularVelocity.multiplyScalar(spinDampingCoeff);
+        return;
+    }
+
+    // Get current linear velocity
+    const linVel = rbComp.rigidbody.linvel();
+    const linVelVec = new THREE.Vector3(linVel.x, linVel.y, linVel.z);
+    const linSpeed = linVelVec.length();
+    printToScreen(`Speed: ${linSpeed.toFixed(2)} m/s`, "speed", 1000);
+    printToScreen(
+        `Spin: ${ballState.angularVelocity.length().toFixed(2)} rad/s`,
+        "spin",
+        1000,
+    );
+
+    // Calculate ideal rolling velocity from spin (v = ω × r)
+    // For a ball spinning with angular velocity ω, surface velocity should be ω*r
+    const spinMagnitude = ballState.angularVelocity.length();
+    const idealLinearSpeed = spinMagnitude * radius;
+
+    // Blend current velocity toward spin-induced velocity
+    if (spinMagnitude > 0.01) {
+        // Get direction perpendicular to spin axis (velocity should be perpendicular to spin)
+        const velDir =
+            linVelVec.length() > 0.01
+                ? linVelVec.clone().normalize()
+                : new THREE.Vector3(1, 0, 0);
+
+        // Apply spin coupling effect
+        const targetVel = velDir
+            .clone()
+            .multiplyScalar(
+                linSpeed * (1 - spinToVelCoupling) +
+                    idealLinearSpeed * spinToVelCoupling,
+            );
+
+        rbComp.rigidbody.setLinvel(targetVel, true);
+    }
+
+    // Apply rolling friction (rolling resistance)
+    if (linSpeed > 0.01) {
+        const frictionCoeff = rollingFrictionCoeff * 9.81; // rolling resistance deceleration
+        const frictionAccel = Math.max(
+            0,
+            linSpeed - frictionCoeff * world.timestep,
+        );
+        const frictionDir = linVelVec.clone().normalize();
+        const newVel = frictionDir
+            .clone()
+            .multiplyScalar(Math.max(0, frictionAccel));
+        rbComp.rigidbody.setLinvel(newVel, true);
+    }
+
+    // Apply damping to spin
+    ballState.angularVelocity.multiplyScalar(spinDampingCoeff);
+
+    // Sleep ball if very slow to prevent endless sliding
+    if (linSpeed < 0.05 && spinMagnitude < 0.05) {
+        rbComp.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        ballState.angularVelocity.set(0, 0, 0);
+    }
+}
