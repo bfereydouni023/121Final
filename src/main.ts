@@ -40,6 +40,7 @@ import {
     type SupportedLanguage,
     translate,
 } from "./languageSettings";
+import { printToScreen } from "./utilities.ts";
 
 const ui = createUIManager();
 // expose for other modules (Inventory, tests, etc.)
@@ -662,19 +663,20 @@ window.onblur = () => {
 
 // Raycast click detection leverages the Input singleton + Rapier queries
 input.addEventListener("mouseDown", (mouseEvent) => {
-    const hit = input.raycastPhysics(
+    const hit = input.raycastPhysicsFromMouse(
+        mouseEvent,
         renderer as THREE.WebGLRenderer,
         mainCamera,
-        {
-            predicate: (collider) =>
-                getGameObjectFromCollider(collider)?.name === "ball",
-        },
+        {},
     );
+    printToScreen(`Clicked on ${hit?.gameObject?.name} ${hit?.gameObject?.id}`);
     const go = hit?.gameObject;
     if (!go) return;
 
-    const script = go.getComponent(ScriptComponent);
-    script?.onClicked?.(mouseEvent);
+    const scripts = go.getComponents(ScriptComponent);
+    scripts.forEach((script) => {
+        script.onClicked?.(mouseEvent);
+    });
 });
 
 let levelToSwap: string | null = null;

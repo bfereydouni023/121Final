@@ -470,7 +470,7 @@ export class Input implements SingletonComponent {
     }
 
     raycastPhysicsFromMouse(
-        ev: MouseEvent,
+        ev: { clientX: number; clientY: number },
         renderer: THREE.WebGLRenderer,
         camera: THREE.Camera,
         options?: PhysicsRaycastOptions,
@@ -554,13 +554,13 @@ export class Input implements SingletonComponent {
         };
     }
 
-    private updatePointerTracking(event: MouseEvent | PointerEvent) {
+    private updatePointerTracking(event: { clientX: number; clientY: number }) {
         this.screenMousePosition.x = event.clientX;
         this.screenMousePosition.y = event.clientY;
     }
 
     private updatePointerRayFromMouse(
-        ev: MouseEvent,
+        ev: { clientX: number; clientY: number },
         renderer: THREE.WebGLRenderer,
         camera: THREE.Camera,
     ): boolean {
