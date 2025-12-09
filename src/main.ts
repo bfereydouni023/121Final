@@ -677,19 +677,15 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     script?.onClicked?.(mouseEvent);
 });
 
+let levelToSwap: string | null = null;
 // perform actual swap outside physics loop when requested by game logic
 window.addEventListener("request:level-swap", (ev: Event) => {
     const id = (ev as CustomEvent).detail?.id;
-    if (!id) return;
-    // defer to next macrotask so we are not inside physics iteration
-    setTimeout(() => {
-        try {
-            levelManager.swapToLevel(id);
-            console.debug(`[Main] swapped to ${id} (deferred)`);
-        } catch (err) {
-            console.warn(`[Main] deferred swapToLevel(${id}) failed:`, err);
-        }
-    }, 0);
+    if (typeof id === "string") {
+        levelToSwap = id;
+    } else {
+        console.warn("request:level-swap event missing valid 'id' detail");
+    }
 });
 
 levelManager.swapToLevel(Level1.name);
@@ -760,6 +756,11 @@ function renderUpdate(delta: number) {
 }
 
 function physicsUpdate(delta: number = world.timestep) {
+    if (levelToSwap) {
+        levelManager.swapToLevel(levelToSwap);
+        levelToSwap = null;
+    }
+
     world.step(physicsEventQueue);
 
     const components = getActivePhysicsComponents();
