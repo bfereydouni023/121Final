@@ -301,6 +301,17 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         dragging = true;
         activePointerId = ev.pointerId;
         dragStartWorld.copy(tmpVec);
+        ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
+        ball.getComponent(RigidbodyComponent)!.rigidbody.setAngvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
+        ballState.angularVelocity.set(0, 0, 0);
+        ballState.framesSinceLastVelocity = 0;
+        ballState.lastFrameVelocity.set(0, 0, 0);
         // show empty indicator
         hideTrajectory();
     }
