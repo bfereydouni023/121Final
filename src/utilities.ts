@@ -30,7 +30,7 @@ export function setupCameraTracking() {
     } else {
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
-    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
+    followComponent.positionOffset = { x: 0, y: 15, z: 15 };
     followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
     followComponent.updateMode = "physics";
     followComponent.rotationMode = "fixed";

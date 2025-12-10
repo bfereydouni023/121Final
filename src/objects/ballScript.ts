@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import { Input } from "../input";
 import type { MouseInputEvent, PointerInputEvent } from "../input";
@@ -14,11 +13,15 @@ import {
     RigidbodyComponent,
     ScriptComponent,
     FollowComponent,
+    BillboardUIComponent,
+    LineRendererComponent,
 } from "../components";
 import { mainCamera } from "../globals";
 import { world } from "../globals";
 import { printToScreen } from "../utilities";
+import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
+import { Color } from "three";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -83,6 +86,12 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     const dragStartWorld = new THREE.Vector3();
     let activePointerId: number | null = null;
     let throwObj: GameObject | null = null;
+    let throwIndicator: GameObject | null = null;
+    let teeLine: GameObject | null = null;
+    const lastMousePosition = new THREE.Vector2();
+    script.storeVariable("strength", 0);
+    script.storeVariable("maxStrength", 100);
+
     throwScript.onClicked = (mouseEvent: MouseInputEvent) => {
         document.body.style.cursor = "none";
         dragging = true;
@@ -90,6 +99,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         dragStartWorld.copy(
             new THREE.Vector3().copy(rbComp.rigidbody.translation()).clone(),
         );
+        lastMousePosition.set(mouseEvent.clientX, mouseEvent.clientY);
         ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
             { x: 0, y: 0, z: 0 },
             true,
@@ -103,21 +113,80 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         ballState.lastFrameVelocity.set(0, 0, 0);
         rbComp.rigidbody.setEnabled(false);
         mainCamera.gameObject.getComponent(FollowComponent)!.target = null;
-        hideTrajectory();
 
         throwObj = createGameObject("throwIndicator");
         const throwTransform = throwObj.addComponent(TransformComponent);
         throwTransform.position =
             ball.getComponent(TransformComponent)!.position;
         ball.getComponent(FollowComponent)!.target = throwTransform;
+
+        throwIndicator = createGameObject("throwSprite");
+        const indicatorTransform =
+            throwIndicator.addComponent(TransformComponent);
+        indicatorTransform.position.y = dragStartWorld.y + 5;
+        indicatorTransform.position.x += dragStartWorld.x + 3;
+        indicatorTransform.position.z += dragStartWorld.z;
+        throwIndicator.addComponent(BillboardUIComponent);
+        throwIndicator.getComponent(BillboardUIComponent)!.size = {
+            width: 50,
+            height: 200,
+        };
+        throwIndicator.getComponent(BillboardUIComponent)!.draw = (ctx) => {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = "white";
+            const strength = script.retrieveVariable("strength") as number;
+            const maxStrength = script.retrieveVariable(
+                "maxStrength",
+            ) as number;
+            const barHeight = (strength / maxStrength) * height;
+            ctx.fillRect(
+                width * 0.25,
+                height - barHeight,
+                width * 0.5,
+                barHeight,
+            );
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, width, height);
+        };
+
+        teeLine = createGameObject("teeLine");
+        const teeTransform = teeLine.addComponent(TransformComponent);
+        teeTransform.position = {
+            ...ball.getComponent(TransformComponent)!.position,
+        };
+        teeTransform.position.y += 0.01;
+        const lineComp = teeLine.addComponent(LineRendererComponent);
+        lineComp.colorFunc = (_t: number) => new Color(0x00ff00);
+        lineComp.thickness = 0.1;
+        lineComp.points = [
+            new THREE.Vector3(-1.5, 0, 0),
+            new THREE.Vector3(1.5, 0, 0),
+        ];
     };
 
-    function onPointerMove(ev: PointerInputEvent) {
-        if (!dragging || ev.pointerId !== activePointerId) return;
+    const speedBuffer = new RingBuffer<number>(10);
+    let energy = 0;
+    throwScript.onPhysicsUpdate = () => {
+        if (!dragging) return;
         if (!throwObj) return;
-        const sensitivity = 1 / 10000;
+        const sensitivity = 1 / 25;
+        const maxDistance = 6;
+        const maxVelocity = 15;
+        const clampVelocity = (velocity: number) => {
+            return Math.max(-maxVelocity, Math.min(maxVelocity, velocity));
+        };
         const transform = throwObj.getComponent(TransformComponent)!;
-        const cursorPos = new THREE.Vector3(ev.velocity.x, 0, ev.velocity.y)
+        const mousePos = input.getScreenMousePosition();
+        const velocity = new THREE.Vector2(mousePos.x, mousePos.y).sub(
+            lastMousePosition,
+        );
+        lastMousePosition.set(mousePos.x, mousePos.y);
+        const cursorPos = new THREE.Vector3(velocity.x, 0, velocity.y)
             .multiplyScalar(sensitivity)
             .add(
                 new THREE.Vector3(
@@ -127,11 +196,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
                 ),
             );
 
-        updateTrajectory(
-            dragStartWorld,
-            new THREE.Vector3().copy(cursorPos),
-            scene,
-        );
         let position = cursorPos;
         position.y = dragStartWorld.y;
         const collision = checkBallPlacement(transform, dragStartWorld, rbComp);
@@ -142,7 +206,8 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         }
 
         if (
-            new THREE.Vector3().copy(position).distanceTo(dragStartWorld) > 10
+            new THREE.Vector3().copy(position).distanceTo(dragStartWorld) >
+            maxDistance
         ) {
             // clamp to max distance
             const dir = new THREE.Vector3()
@@ -151,29 +216,45 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
                 .normalize();
             position = new THREE.Vector3()
                 .copy(dragStartWorld)
-                .add(dir.multiplyScalar(10));
+                .add(dir.multiplyScalar(maxDistance));
         }
         transform.position = { ...position };
-    }
+        if (speedBuffer.size() === speedBuffer.capacity()) {
+            const vel = speedBuffer.get(0)!;
+            energy -= vel;
+        }
+        const speed = clampVelocity(
+            velocity.lengthSq() * sensitivity * -Math.sign(velocity.y),
+        );
+        energy += speed;
+        speedBuffer.push(speed);
+        script.storeVariable("strength", energy);
+        printToScreen(energy.toFixed(2), "energy", 1000);
+    };
 
     function onPointerUp(ev: PointerInputEvent) {
         document.body.style.cursor = "default";
         if (!dragging || ev.pointerId !== activePointerId) return;
-
         dragging = false;
         activePointerId = null;
         rbComp.rigidbody.setEnabled(true);
         ball.getComponent(FollowComponent)!.target = null;
         mainCamera.gameObject.getComponent(FollowComponent)!.target =
             ball.getComponent(TransformComponent)!;
-        // hide the indicator on release
-        hideTrajectory();
         if (throwObj) destroyGameObject(throwObj);
         if (!validThrow) {
             ball.getComponent(TransformComponent)!.position = {
                 ...dragStartWorld,
             };
         }
+        if (throwIndicator) {
+            destroyGameObject(throwIndicator);
+        }
+        if (teeLine) {
+            destroyGameObject(teeLine);
+        }
+        speedBuffer.clear();
+        energy = 0;
     }
 
     input.addEventListener("pointerCancel", (ev: PointerInputEvent) => {
@@ -184,7 +265,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     });
 
     const removeListeners = [
-        input.addEventListener("pointerMove", onPointerMove),
         input.addEventListener("pointerUp", onPointerUp),
         input.addEventListener("pointerCancel", onPointerUp),
         input.addEventListener("pointerLeave", onPointerUp),
@@ -193,31 +273,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     // Hook to clean up listeners if the script/component system supports disposal
     script.onDispose = () => {
         removeListeners.forEach((dispose) => dispose());
-        try {
-            hideTrajectory();
-            if (trajLine) {
-                // remove resize listener
-                const onResize = (
-                    trajLine as unknown as { __onResize?: () => void }
-                ).__onResize;
-                if (onResize) window.removeEventListener("resize", onResize);
-                scene.remove(trajLine);
-                trajLine = null;
-            }
-            trajGeometry = null;
-            if (trajMaterial) {
-                try {
-                    trajMaterial.dispose?.();
-                } catch (err) {
-                    console.warn("trajMaterial.dispose failed:", err);
-                }
-                trajMaterial = null;
-            }
-        } catch (err) {
-            console.warn("onDispose failed:", err);
-        }
     };
-
     return ball;
 }
 
@@ -338,83 +394,4 @@ function applyRollingDynamics(
         rbComp.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
         ballState.angularVelocity.set(0, 0, 0);
     }
-}
-
-// Trajectory indicator (fat line using three/examples Line2)
-const TRAJ_POINTS = 40;
-const TRAJ_DT = 0.02; // seconds between samples
-let trajLine: Line2 | null = null;
-let trajGeometry: LineGeometry | null = null;
-let trajMaterial: LineMaterial | null = null;
-
-function createTrajectoryLine(scene: THREE.Scene) {
-    // positions array: x,y,z repeated
-    const positions = new Float32Array(TRAJ_POINTS * 3);
-    trajGeometry = new LineGeometry();
-    // LineGeometry#setPositions expects a flat array of numbers
-    trajGeometry.setPositions(Array.from(positions));
-
-    // try to pick accent color from UI CSS var if available (fallback to hex)
-
-    const accentHex = 0xff8800; // orange
-    trajMaterial = new LineMaterial({
-        color: accentHex,
-        linewidth: 6, // thickness in pixels (adjust to taste)
-        transparent: true,
-        opacity: 0.95,
-    });
-    // material needs screen resolution to compute linewidth
-    try {
-        trajMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    } catch {
-        // ignore in non-browser envs
-    }
-
-    trajLine = new Line2(trajGeometry, trajMaterial);
-    trajLine.computeLineDistances();
-    trajLine.frustumCulled = false;
-    scene.add(trajLine);
-
-    // keep resolution updated on resize
-    const onResize = () => {
-        try {
-            trajMaterial?.resolution.set(window.innerWidth, window.innerHeight);
-        } catch (err) {
-            console.warn("trajLine onResize failed:", err);
-        }
-    };
-    window.addEventListener("resize", onResize);
-    // store as property for cleanup in dispose handler
-    (trajLine as unknown as { __onResize?: () => void }).__onResize = onResize;
-}
-
-function updateTrajectory(
-    position: THREE.Vector3,
-    initialVelocity: THREE.Vector3,
-    scene: THREE.Scene,
-) {
-    if (!trajLine || !trajGeometry) createTrajectoryLine(scene);
-    if (!trajLine || !trajGeometry) return;
-
-    const ptsArray: number[] = [];
-    const tmp = new THREE.Vector3();
-    for (let i = 0; i < TRAJ_POINTS; i++) {
-        const t = i * TRAJ_DT;
-        // p = p0 + v0*t + 0.5*g*t^2
-        tmp.copy(initialVelocity).multiplyScalar(t);
-        const gterm = new THREE.Vector3()
-            .copy(world.gravity)
-            .multiplyScalar(0.5 * t * t);
-        tmp.add(gterm).add(position);
-        ptsArray.push(tmp.x, tmp.y, tmp.z);
-    }
-    // update geometry positions
-    trajGeometry.setPositions(ptsArray);
-    trajLine.computeLineDistances();
-    trajLine.visible = true;
-}
-
-function hideTrajectory() {
-    if (!trajLine) return;
-    trajLine.visible = false;
 }

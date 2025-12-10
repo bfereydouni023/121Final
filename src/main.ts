@@ -669,7 +669,6 @@ input.addEventListener("mouseDown", (mouseEvent) => {
         mainCamera,
         {},
     );
-    printToScreen(`Clicked on ${hit?.gameObject?.name} ${hit?.gameObject?.id}`);
     const go = hit?.gameObject;
     if (!go) return;
 
