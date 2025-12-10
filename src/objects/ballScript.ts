@@ -15,7 +15,7 @@ import {
     ScriptComponent,
     FollowComponent,
 } from "../components";
-import { mainCamera, renderer } from "../globals";
+import { mainCamera } from "../globals";
 import { world } from "../globals";
 import { printToScreen } from "../utilities";
 import type { GameObject } from "../types";
@@ -84,6 +84,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     let activePointerId: number | null = null;
     let throwObj: GameObject | null = null;
     throwScript.onClicked = (mouseEvent: MouseInputEvent) => {
+        document.body.style.cursor = "none";
         dragging = true;
         activePointerId = mouseEvent.pointerId;
         dragStartWorld.copy(
@@ -113,18 +114,25 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
 
     function onPointerMove(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
-        const hit = input.raycastPhysicsFromMouse(ev, renderer, mainCamera, {
-            excludeRigidBody: rbComp.rigidbody,
-        });
-        if (!hit) return;
+        if (!throwObj) return;
+        const sensitivity = 1 / 10000;
+        const transform = throwObj.getComponent(TransformComponent)!;
+        const cursorPos = new THREE.Vector3(ev.velocity.x, 0, ev.velocity.y)
+            .multiplyScalar(sensitivity)
+            .add(
+                new THREE.Vector3(
+                    transform.position.x,
+                    dragStartWorld.y,
+                    transform.position.z,
+                ),
+            );
+
         updateTrajectory(
             dragStartWorld,
-            new THREE.Vector3().copy(hit.point),
+            new THREE.Vector3().copy(cursorPos),
             scene,
         );
-        if (!throwObj) return;
-        const transform = throwObj!.getComponent(TransformComponent)!;
-        let position = hit.point;
+        let position = cursorPos;
         position.y = dragStartWorld.y;
         const collision = checkBallPlacement(transform, dragStartWorld, rbComp);
         if (collision) {
@@ -149,6 +157,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     }
 
     function onPointerUp(ev: PointerInputEvent) {
+        document.body.style.cursor = "default";
         if (!dragging || ev.pointerId !== activePointerId) return;
 
         dragging = false;
