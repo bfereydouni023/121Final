@@ -17,12 +17,15 @@ import type {
 import type { MouseInputEvent } from "./input";
 import {
     Camera,
+    CanvasTexture,
     Light,
     Material,
     Matrix4,
     Mesh,
     PointLight,
     Quaternion,
+    Sprite,
+    SpriteMaterial,
     Vector3 as ThreeVector3,
 } from "three";
 
@@ -502,5 +505,65 @@ export class PickupComponent extends ScriptComponent {
 
     removeTriggerObject(gameObject: GameObject): void {
         this.triggers.delete(gameObject);
+    }
+}
+
+export class BillboardUIComponent extends BaseComponent {
+    dependencies = [TransformComponent];
+    private canvas: HTMLCanvasElement;
+    private texture: CanvasTexture | null = null;
+    private sprite: Sprite;
+    public set size(value: { width: number; height: number }) {
+        this.canvas.width = value.width;
+        this.canvas.height = value.height;
+    }
+    public get size(): { width: number; height: number } {
+        return {
+            width: this.canvas.width,
+            height: this.canvas.height,
+        };
+    }
+    draw?(canvas: CanvasRenderingContext2D): void;
+
+    constructor(gameObject: GameObject) {
+        super(gameObject);
+        this.canvas = document.createElement("canvas");
+        this.size = { width: 256, height: 256 };
+        this.sprite = this.render()!;
+        Globals.scene.add(this.sprite);
+    }
+
+    renderUpdate(_deltaTime: number): void {
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        this.draw?.(this.canvas.getContext("2d")!);
+        if (this.texture) {
+        this.texture.needsUpdate = true;
+        }
+        this.sprite.position.set(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
+        );
+    }
+
+    dispose(): void {
+        Globals.scene.remove(this.sprite);
+        this.texture?.dispose();
+    }
+
+    private render(): Sprite | null {
+        const ctx = this.canvas.getContext("2d");
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        if (!ctx) return null;
+        this.texture = new CanvasTexture(this.canvas);
+        this.texture.needsUpdate = true;
+        const material = new SpriteMaterial({ map: this.texture });
+        const sprite = new Sprite(material);
+        sprite.position.set(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
+        );
+        return sprite;
     }
 }
