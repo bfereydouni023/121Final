@@ -284,7 +284,8 @@ export class FollowComponent extends BaseComponent {
     dependencies = [TransformComponent];
     public updateMode: "render" | "physics" = "render";
     public target: TransformComponent | null = null;
-    public positionOffset: Vector3 = { x: 0, y: 5, z: -10 };
+    public enabled: boolean = true;
+    public positionOffset: Vector3 = { x: 0, y: 0, z: 0 };
     public rotationOffset: Rotation = { x: 0, y: 0, z: 0, w: 0 };
     public positionSmoothFactor: number = 0.1;
     public rotationSmoothFactor: number = 0.1;
@@ -308,6 +309,7 @@ export class FollowComponent extends BaseComponent {
     }
 
     update() {
+        if (!this.enabled) return;
         if (!this.target) return;
         const transform = this.gameObject.getComponent(TransformComponent)!;
         if (this.positionMode === "follow") {
@@ -418,7 +420,7 @@ export class ScriptComponent extends BaseComponent {
     /**
      * @requires Requires a {@link RigidbodyComponent} or {@link MeshComponent} to be present on the same GameObject.
      */
-    public onClicked?(event: MouseEvent | MouseInputEvent): void;
+    public onClicked?(event: MouseInputEvent): void;
     public onDispose?(): void;
     public onCollisionEnter?(other: GameObject): void;
     public onCollisionExit?(other: GameObject): void;
