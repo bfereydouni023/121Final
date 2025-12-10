@@ -2,17 +2,23 @@ import * as THREE from "three";
 import { Line2, LineGeometry, LineMaterial } from "three-stdlib";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import { Input } from "../input";
-import type { PointerInputEvent } from "../input";
-import { createGameObject, getSingletonComponent } from "../objectSystem";
+import type { MouseInputEvent, PointerInputEvent } from "../input";
+import {
+    createGameObject,
+    destroyGameObject,
+    getSingletonComponent,
+} from "../objectSystem";
 import {
     TransformComponent,
     MeshComponent,
     RigidbodyComponent,
     ScriptComponent,
+    FollowComponent,
 } from "../components";
-import { mainCamera } from "../globals";
+import { mainCamera, renderer } from "../globals";
 import { world } from "../globals";
 import { printToScreen } from "../utilities";
+import type { GameObject } from "../types";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -56,6 +62,8 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     rbComp.collider.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min);
     rbComp.collider.setRestitution(0.3);
 
+    ball.addComponent(FollowComponent);
+
     // Custom tracking for spin and physics state
     const ballState = {
         angularVelocity: new THREE.Vector3(0, 0, 0), // spin axis and magnitude
@@ -66,159 +74,21 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
 
     // Script / behavior component - adds drag-to-launch interactions
     const script = ball.addComponent(ScriptComponent);
-    // const throwScript = ball.addComponent(ScriptComponent);
-
     script.onPhysicsUpdate = () =>
         applyRollingDynamics(rbComp, ballState, radius);
 
-    // Raycaster + plane helpers for mapping pointer -> world at the ball depth
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const plane = new THREE.Plane();
-    const tmpVec = new THREE.Vector3();
-
+    const throwScript = ball.addComponent(ScriptComponent);
     let dragging = false;
+    let validThrow = false;
     const dragStartWorld = new THREE.Vector3();
     let activePointerId: number | null = null;
-
-    // Trajectory indicator (fat line using three/examples Line2)
-    const TRAJ_POINTS = 40;
-    const TRAJ_DT = 0.02; // seconds between samples
-    let trajLine: Line2 | null = null;
-    let trajGeometry: LineGeometry | null = null;
-    let trajMaterial: LineMaterial | null = null;
-
-    function createTrajectoryLine() {
-        // positions array: x,y,z repeated
-        const positions = new Float32Array(TRAJ_POINTS * 3);
-        trajGeometry = new LineGeometry();
-        // LineGeometry#setPositions expects a flat array of numbers
-        trajGeometry.setPositions(Array.from(positions));
-
-        // try to pick accent color from UI CSS var if available (fallback to hex)
-
-        const accentHex = 0xff8800; // orange
-        trajMaterial = new LineMaterial({
-            color: accentHex,
-            linewidth: 6, // thickness in pixels (adjust to taste)
-            transparent: true,
-            opacity: 0.95,
-        });
-        // material needs screen resolution to compute linewidth
-        try {
-            trajMaterial.resolution.set(window.innerWidth, window.innerHeight);
-        } catch {
-            // ignore in non-browser envs
-        }
-
-        trajLine = new Line2(trajGeometry, trajMaterial);
-        trajLine.computeLineDistances();
-        trajLine.frustumCulled = false;
-        scene.add(trajLine);
-
-        // keep resolution updated on resize
-        const onResize = () => {
-            try {
-                trajMaterial?.resolution.set(
-                    window.innerWidth,
-                    window.innerHeight,
-                );
-            } catch (err) {
-                console.warn("trajLine onResize failed:", err);
-            }
-        };
-        window.addEventListener("resize", onResize);
-        // store as property for cleanup in dispose handler
-        (trajLine as unknown as { __onResize?: () => void }).__onResize =
-            onResize;
-    }
-
-    function updateTrajectory(
-        position: THREE.Vector3,
-        initialVelocity: THREE.Vector3,
-    ) {
-        if (!trajLine || !trajGeometry) createTrajectoryLine();
-        if (!trajLine || !trajGeometry) return;
-        const gVec = (() => {
-            // try to read world gravity, fallback to -9.81 on Y
-            try {
-                const g = (
-                    world as { gravity?: { x: number; y: number; z: number } }
-                )?.gravity;
-                if (g) return new THREE.Vector3(g.x, g.y, g.z);
-            } catch (err) {
-                console.warn(
-                    "updateTrajectory: read world.gravity failed:",
-                    err,
-                );
-            }
-            return new THREE.Vector3(0, -9.81, 0);
-        })();
-
-        const ptsArray: number[] = [];
-        const tmp = new THREE.Vector3();
-        for (let i = 0; i < TRAJ_POINTS; i++) {
-            const t = i * TRAJ_DT;
-            // p = p0 + v0*t + 0.5*g*t^2
-            tmp.copy(initialVelocity).multiplyScalar(t);
-            const gterm = gVec.clone().multiplyScalar(0.5 * t * t);
-            tmp.add(gterm).add(position);
-            ptsArray.push(tmp.x, tmp.y, tmp.z);
-        }
-        // update geometry positions
-        trajGeometry.setPositions(ptsArray);
-        trajLine.computeLineDistances();
-        trajLine.visible = true;
-    }
-
-    function hideTrajectory() {
-        if (!trajLine) return;
-        trajLine.visible = false;
-    }
-
-    function pointerToWorldOnBallPlane(
-        event: PointerInputEvent,
-        out: THREE.Vector3,
-    ) {
-        pointer.set(event.normalizedPosition.x, event.normalizedPosition.y);
-        // guard the camera before calling into Three.js
-        if (!mainCamera) {
-            console.error(
-                "pointerToWorldOnBallPlane: invalid camera, aborting raycast",
-            );
-            return false;
-        }
-        raycaster.setFromCamera(pointer, mainCamera);
-
-        // Use a horizontal plane at the ball's current Y so drag is constrained to XZ (horizontal) movement.
-        // This makes dragging map to world X/Z only.
-        const ballWorldPos = meshComp.mesh.getWorldPosition(
-            new THREE.Vector3(),
-        );
-        const horizontalNormal = new THREE.Vector3(0, 1, 0);
-        plane.setFromNormalAndCoplanarPoint(horizontalNormal, ballWorldPos);
-
-        const intersectPoint = new THREE.Vector3();
-        const hit = raycaster.ray.intersectPlane(plane, intersectPoint);
-        if (hit) {
-            out.copy(intersectPoint);
-            return true;
-        }
-        return false;
-    }
-
-    function onPointerDown(ev: PointerInputEvent) {
-        // only left button
-        if (ev.button !== 0) return;
-        if (!pointerToWorldOnBallPlane(ev, tmpVec)) return;
-
-        // quick raycast to ensure we clicked the ball mesh
-        const intersects = raycaster.intersectObject(meshComp.mesh, false);
-        if (intersects.length === 0) return;
-
+    let throwObj: GameObject | null = null;
+    throwScript.onClicked = (mouseEvent: MouseInputEvent) => {
         dragging = true;
-        activePointerId = ev.pointerId;
-        dragStartWorld.copy(tmpVec);
+        activePointerId = mouseEvent.pointerId;
+        dragStartWorld.copy(
+            new THREE.Vector3().copy(rbComp.rigidbody.translation()).clone(),
+        );
         ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
             { x: 0, y: 0, z: 0 },
             true,
@@ -230,86 +100,81 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         ballState.angularVelocity.set(0, 0, 0);
         ballState.framesSinceLastVelocity = 0;
         ballState.lastFrameVelocity.set(0, 0, 0);
-        // show empty indicator
+        rbComp.rigidbody.setEnabled(false);
+        mainCamera.gameObject.getComponent(FollowComponent)!.target = null;
         hideTrajectory();
-    }
+
+        throwObj = createGameObject("throwIndicator");
+        const throwTransform = throwObj.addComponent(TransformComponent);
+        throwTransform.position =
+            ball.getComponent(TransformComponent)!.position;
+        ball.getComponent(FollowComponent)!.target = throwTransform;
+    };
 
     function onPointerMove(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
-        // optional: you could show a visual indicator here using the world point
-        if (!pointerToWorldOnBallPlane(ev, tmpVec)) return;
-        // compute preview using same logic as onPointerUp (but without applying impulse)
-        const dragNow = new THREE.Vector3().subVectors(tmpVec, dragStartWorld);
-        dragNow.y = 0;
-        const dragLen = dragNow.length();
-        const strength = Math.min(dragLen * 60, 400);
-        // direction is opposite of drag (player drags backward)
-        const impulseDir = dragNow.clone().negate().normalize();
-        const impulse = impulseDir.clone().multiplyScalar(strength);
-        // velocity estimate: v0 = impulse / mass (rbComp.mass previously set)
-        const mass = 1;
-        const v0 = impulse.clone().divideScalar(mass);
-        // world position to start from (ball current world position)
-        const startPos = meshComp.mesh.getWorldPosition(new THREE.Vector3());
-        updateTrajectory(startPos, v0);
+        const hit = input.raycastPhysicsFromMouse(ev, renderer, mainCamera, {
+            excludeRigidBody: rbComp.rigidbody,
+        });
+        if (!hit) return;
+        updateTrajectory(
+            dragStartWorld,
+            new THREE.Vector3().copy(hit.point),
+            scene,
+        );
+        if (!throwObj) return;
+        const transform = throwObj!.getComponent(TransformComponent)!;
+        let position = hit.point;
+        position.y = dragStartWorld.y;
+        const collision = checkBallPlacement(transform, dragStartWorld, rbComp);
+        if (collision) {
+            validThrow = false;
+        } else {
+            validThrow = true;
+        }
+
+        if (
+            new THREE.Vector3().copy(position).distanceTo(dragStartWorld) > 10
+        ) {
+            // clamp to max distance
+            const dir = new THREE.Vector3()
+                .copy(position)
+                .sub(dragStartWorld)
+                .normalize();
+            position = new THREE.Vector3()
+                .copy(dragStartWorld)
+                .add(dir.multiplyScalar(10));
+        }
+        transform.position = { ...position };
     }
 
     function onPointerUp(ev: PointerInputEvent) {
         if (!dragging || ev.pointerId !== activePointerId) return;
-        const dragEndWorld = new THREE.Vector3();
-        const got = pointerToWorldOnBallPlane(ev, dragEndWorld);
-        // fallback: if plane intersection fails, use last known tmpVec
-        if (!got) dragEndWorld.copy(tmpVec);
-
-        // compute impulse direction: opposite of drag vector (player drags backward to shoot forward)
-        const dragVec = new THREE.Vector3().subVectors(
-            dragEndWorld,
-            dragStartWorld,
-        );
-        // constrain to horizontal (ignore Y) so launch is only in XZ plane
-        dragVec.y = 0;
-        if (dragVec.lengthSq() < 1e-6) {
-            // tiny drag — apply a small upward nudge
-            dragVec.set(0, -0.2, 0);
-        }
-        const impulseDir = dragVec.clone().negate().normalize();
-
-        // scale strength by drag length (tweak multiplier to taste)
-        const strength = Math.min(dragVec.length() * 60, 400);
-        const impulse = {
-            x: impulseDir.x * strength,
-            y: impulseDir.y * strength,
-            z: impulseDir.z * strength,
-        };
-
-        rbComp.rigidbody.applyImpulse(impulse, true);
-
-        // Apply spin based on drag motion
-        // The spin axis should be perpendicular to the direction of motion
-        // Drag left/right creates spin around Y axis, drag forward/backward creates spin around Z/X axis
-        const spinStrength = dragVec.length() * 2; // spin magnitude proportional to drag distance
-
-        // Create spin perpendicular to drag direction for realistic rolling
-        if (dragVec.length() > 0.1) {
-            // Spin axis is perpendicular to drag vector in horizontal plane
-            const perpDir = new THREE.Vector3(
-                -dragVec.z,
-                0,
-                dragVec.x,
-            ).normalize();
-            ballState.angularVelocity
-                .copy(perpDir)
-                .multiplyScalar(spinStrength);
-        }
 
         dragging = false;
         activePointerId = null;
+        rbComp.rigidbody.setEnabled(true);
+        ball.getComponent(FollowComponent)!.target = null;
+        mainCamera.gameObject.getComponent(FollowComponent)!.target =
+            ball.getComponent(TransformComponent)!;
         // hide the indicator on release
         hideTrajectory();
+        if (throwObj) destroyGameObject(throwObj);
+        if (!validThrow) {
+            ball.getComponent(TransformComponent)!.position = {
+                ...dragStartWorld,
+            };
+        }
     }
 
+    input.addEventListener("pointerCancel", (ev: PointerInputEvent) => {
+        onPointerUp(ev);
+    });
+    input.addEventListener("pointerLeave", (ev: PointerInputEvent) => {
+        onPointerUp(ev);
+    });
+
     const removeListeners = [
-        input.addEventListener("pointerDown", onPointerDown),
         input.addEventListener("pointerMove", onPointerMove),
         input.addEventListener("pointerUp", onPointerUp),
         input.addEventListener("pointerCancel", onPointerUp),
@@ -345,6 +210,31 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     };
 
     return ball;
+}
+
+function checkBallPlacement(
+    ball: TransformComponent,
+    dragStartWorld: THREE.Vector3,
+    rbComp: RigidbodyComponent,
+) {
+    const checkVel = new THREE.Vector3()
+        .copy(new THREE.Vector3().copy(ball.position))
+        .sub(dragStartWorld.clone());
+    const cast = world.castShape(
+        new THREE.Vector3()
+            .copy(dragStartWorld)
+            .add(new THREE.Vector3(0, 0.05, 0)),
+        new RAPIER.Quaternion(0, 0, 0, 1),
+        checkVel.set(checkVel.x, 0, checkVel.z),
+        rbComp.collider.shape,
+        0.01,
+        1,
+        true,
+        undefined,
+        undefined,
+        rbComp.collider,
+    );
+    return cast;
 }
 
 function applyRollingDynamics(
@@ -439,4 +329,83 @@ function applyRollingDynamics(
         rbComp.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
         ballState.angularVelocity.set(0, 0, 0);
     }
+}
+
+// Trajectory indicator (fat line using three/examples Line2)
+const TRAJ_POINTS = 40;
+const TRAJ_DT = 0.02; // seconds between samples
+let trajLine: Line2 | null = null;
+let trajGeometry: LineGeometry | null = null;
+let trajMaterial: LineMaterial | null = null;
+
+function createTrajectoryLine(scene: THREE.Scene) {
+    // positions array: x,y,z repeated
+    const positions = new Float32Array(TRAJ_POINTS * 3);
+    trajGeometry = new LineGeometry();
+    // LineGeometry#setPositions expects a flat array of numbers
+    trajGeometry.setPositions(Array.from(positions));
+
+    // try to pick accent color from UI CSS var if available (fallback to hex)
+
+    const accentHex = 0xff8800; // orange
+    trajMaterial = new LineMaterial({
+        color: accentHex,
+        linewidth: 6, // thickness in pixels (adjust to taste)
+        transparent: true,
+        opacity: 0.95,
+    });
+    // material needs screen resolution to compute linewidth
+    try {
+        trajMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    } catch {
+        // ignore in non-browser envs
+    }
+
+    trajLine = new Line2(trajGeometry, trajMaterial);
+    trajLine.computeLineDistances();
+    trajLine.frustumCulled = false;
+    scene.add(trajLine);
+
+    // keep resolution updated on resize
+    const onResize = () => {
+        try {
+            trajMaterial?.resolution.set(window.innerWidth, window.innerHeight);
+        } catch (err) {
+            console.warn("trajLine onResize failed:", err);
+        }
+    };
+    window.addEventListener("resize", onResize);
+    // store as property for cleanup in dispose handler
+    (trajLine as unknown as { __onResize?: () => void }).__onResize = onResize;
+}
+
+function updateTrajectory(
+    position: THREE.Vector3,
+    initialVelocity: THREE.Vector3,
+    scene: THREE.Scene,
+) {
+    if (!trajLine || !trajGeometry) createTrajectoryLine(scene);
+    if (!trajLine || !trajGeometry) return;
+
+    const ptsArray: number[] = [];
+    const tmp = new THREE.Vector3();
+    for (let i = 0; i < TRAJ_POINTS; i++) {
+        const t = i * TRAJ_DT;
+        // p = p0 + v0*t + 0.5*g*t^2
+        tmp.copy(initialVelocity).multiplyScalar(t);
+        const gterm = new THREE.Vector3()
+            .copy(world.gravity)
+            .multiplyScalar(0.5 * t * t);
+        tmp.add(gterm).add(position);
+        ptsArray.push(tmp.x, tmp.y, tmp.z);
+    }
+    // update geometry positions
+    trajGeometry.setPositions(ptsArray);
+    trajLine.computeLineDistances();
+    trajLine.visible = true;
+}
+
+function hideTrajectory() {
+    if (!trajLine) return;
+    trajLine.visible = false;
 }
