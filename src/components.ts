@@ -16,9 +16,16 @@ import type {
 } from "./types";
 import type { MouseInputEvent } from "./input";
 import {
+    BufferGeometry,
     Camera,
     CanvasTexture,
+    ClampToEdgeWrapping,
+    Color,
+    Float32BufferAttribute,
     Light,
+    Line,
+    LineBasicMaterial,
+    LinearFilter,
     Material,
     Matrix4,
     Mesh,
@@ -416,6 +423,7 @@ export class FollowComponent extends BaseComponent {
 }
 
 export class ScriptComponent extends BaseComponent {
+    private variables: Map<string, unknown> = new Map<string, unknown>();
     public onCreate?(): void;
     public onStart?(): void;
     public onUpdate?(deltaTime: number): void;
@@ -444,6 +452,14 @@ export class ScriptComponent extends BaseComponent {
     }
     dispose(): void {
         this.onDispose?.();
+    }
+
+    public storeVariable<T>(key: string, value: T): void {
+        this.variables.set(key, value);
+    }
+
+    public retrieveVariable<T>(key: string): T | undefined {
+        return this.variables.get(key) as T | undefined;
     }
 }
 
@@ -516,6 +532,10 @@ export class BillboardUIComponent extends BaseComponent {
     public set size(value: { width: number; height: number }) {
         this.canvas.width = value.width;
         this.canvas.height = value.height;
+        this.texture?.dispose();
+        Globals.scene.remove(this.sprite);
+        this.sprite = this.render()!;
+        Globals.scene.add(this.sprite);
     }
     public get size(): { width: number; height: number } {
         return {
@@ -528,7 +548,8 @@ export class BillboardUIComponent extends BaseComponent {
     constructor(gameObject: GameObject) {
         super(gameObject);
         this.canvas = document.createElement("canvas");
-        this.size = { width: 256, height: 256 };
+        this.canvas.width = 256;
+        this.canvas.height = 256;
         this.sprite = this.render()!;
         Globals.scene.add(this.sprite);
     }
@@ -537,7 +558,7 @@ export class BillboardUIComponent extends BaseComponent {
         const transform = this.gameObject.getComponent(TransformComponent)!;
         this.draw?.(this.canvas.getContext("2d")!);
         if (this.texture) {
-        this.texture.needsUpdate = true;
+            this.texture.needsUpdate = true;
         }
         this.sprite.position.set(
             transform.position.x,
@@ -556,14 +577,187 @@ export class BillboardUIComponent extends BaseComponent {
         const transform = this.gameObject.getComponent(TransformComponent)!;
         if (!ctx) return null;
         this.texture = new CanvasTexture(this.canvas);
+        this.texture.minFilter = LinearFilter;
+        this.texture.wrapS = ClampToEdgeWrapping;
+        this.texture.wrapT = ClampToEdgeWrapping;
         this.texture.needsUpdate = true;
-        const material = new SpriteMaterial({ map: this.texture });
+        const material = new SpriteMaterial({
+            map: this.texture,
+            transparent: true,
+        });
         const sprite = new Sprite(material);
+        sprite.scale.set(this.canvas.width / 100, this.canvas.height / 100, 1);
         sprite.position.set(
             transform.position.x,
             transform.position.y,
             transform.position.z,
         );
         return sprite;
+    }
+}
+
+export class LineRendererComponent extends BaseComponent {
+    dependencies = [TransformComponent];
+    private line: Line;
+    private geometry: BufferGeometry;
+    private material: LineBasicMaterial;
+    private _points: Vector3[] = [];
+    private _lineWidth: number = 1;
+    private _linecap: "butt" | "round" | "square" = "round";
+    private _linejoin: "round" | "bevel" | "miter" = "round";
+
+    /**
+     * Function that provides color for the line based on position along the line.
+     * Parameter t ranges from 0 (start) to 1 (end).
+     * Returns a Color object.
+     */
+    private colorFunction: (t: number) => Color = () => new Color(0xffffff);
+
+    public set colorFunc(func: (t: number) => Color) {
+        this.colorFunction = func;
+        this.updateColors();
+    }
+
+    public get colorFunc(): (t: number) => Color {
+        return this.colorFunction;
+    }
+
+    constructor(gameObject: GameObject) {
+        super(gameObject);
+        this.geometry = new BufferGeometry();
+        this.material = new LineBasicMaterial({
+            color: 0xffffff,
+            linewidth: this._lineWidth,
+            linecap: this._linecap,
+            linejoin: this._linejoin,
+            vertexColors: true,
+        });
+        this.line = new Line(this.geometry, this.material);
+        Globals.scene.add(this.line);
+    }
+
+    /**
+     * Set the points that define the line in world space (relative to the transform).
+     */
+    public set points(value: Vector3[]) {
+        this._points = value;
+        this.updateGeometry();
+    }
+
+    public get points(): Vector3[] {
+        return this._points;
+    }
+
+    /**
+     * Set the line width (note: linewidth > 1 only works with WebGLRenderer if using Line2).
+     */
+    public set thickness(value: number) {
+        this._lineWidth = value;
+        this.material.linewidth = value;
+        this.material.needsUpdate = true;
+    }
+
+    public get thickness(): number {
+        return this._lineWidth;
+    }
+
+    /**
+     * Set the line cap style.
+     */
+    public set linecap(value: "butt" | "round" | "square") {
+        this._linecap = value;
+        this.material.linecap = value;
+        this.material.needsUpdate = true;
+    }
+
+    public get linecap(): "butt" | "round" | "square" {
+        return this._linecap;
+    }
+
+    /**
+     * Set the line join style.
+     */
+    public set linejoin(value: "round" | "bevel" | "miter") {
+        this._linejoin = value;
+        this.material.linejoin = value;
+        this.material.needsUpdate = true;
+    }
+
+    public get linejoin(): "round" | "bevel" | "miter" {
+        return this._linejoin;
+    }
+
+    renderUpdate(_deltaTime: number): void {
+        const transform = this.gameObject.getComponent(TransformComponent)!;
+        // Update line position to match transform
+        this.line.position.set(
+            transform.position.x,
+            transform.position.y,
+            transform.position.z,
+        );
+        const rot = transform.rotation;
+        this.line.quaternion.set(rot.x, rot.y, rot.z, rot.w);
+        this.line.scale.set(
+            transform.scale.x,
+            transform.scale.y,
+            transform.scale.z,
+        );
+    }
+
+    dispose(): void {
+        Globals.scene.remove(this.line);
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+
+    /**
+     * Update the geometry with current points and colors from the color function.
+     */
+    private updateGeometry(): void {
+        if (this._points.length < 2) {
+            // Need at least 2 points to draw a line
+            this.geometry.setFromPoints([]);
+            return;
+        }
+
+        // Convert Vector3 points to Three.js Vector3
+        const threePoints = this._points.map(
+            (p) => new ThreeVector3(p.x, p.y, p.z),
+        );
+        this.geometry.setFromPoints(threePoints);
+
+        // Generate colors based on the color function
+        const colors: number[] = [];
+        const numPoints = this._points.length;
+        for (let i = 0; i < numPoints; i++) {
+            const t = numPoints > 1 ? i / (numPoints - 1) : 0;
+            const color = this.colorFunction(t);
+            colors.push(color.r, color.g, color.b);
+        }
+
+        // Set color attribute
+        this.geometry.setAttribute(
+            "color",
+            new Float32BufferAttribute(colors, 3),
+        );
+        this.geometry.attributes.color.needsUpdate = true;
+    }
+
+    private updateColors(): void {
+        if (this._points.length < 2) return;
+
+        const colors: number[] = [];
+        const numPoints = this._points.length;
+        for (let i = 0; i < numPoints; i++) {
+            const t = numPoints > 1 ? i / (numPoints - 1) : 0;
+            const color = this.colorFunction(t);
+            colors.push(color.r, color.g, color.b);
+        }
+
+        this.geometry.setAttribute(
+            "color",
+            new Float32BufferAttribute(colors, 3),
+        );
+        this.geometry.attributes.color.needsUpdate = true;
     }
 }
