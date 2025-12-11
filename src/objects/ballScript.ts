@@ -182,6 +182,8 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         "minThrowStrength",
         0.2 * throwScript.getVar<number>("maxStrength")!,
     );
+    throwScript.storeVar("spin", 0);
+    throwScript.storeVar("maxSpin", 50);
 
     throwScript.onEnable = () => {
         dragging = true;
@@ -230,21 +232,42 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             ctx.fillStyle = "white";
             const strength = throwScript.getVar("strength") as number;
             const maxStrength = throwScript.getVar("maxStrength") as number;
+            const spin = (throwScript.getVar("spin") as number) || 0;
+            const maxSpin = throwScript.getVar("maxSpin") as number;
             const minThrowStrength =
                 throwScript.getVar<number>("minThrowStrength")!;
             const minPowerHeight = (minThrowStrength / maxStrength) * height;
             ctx.fillStyle = "rgba(255,0,0,0.25)";
             ctx.fillRect(0, height - minPowerHeight, width / 2, 5);
             const barHeight = (strength / maxStrength) * height;
+
+            // Draw thick bar showing strength with bend for spin
+            const barWidth = width * 0.75;
+            const spinAmount = spin / maxSpin;
+            const bendStart = 0.4;
+            const maxBend = width * 0.15; // Maximum horizontal bend at top
+
             ctx.fillStyle = validThrow
                 ? "rgba(0,255,0,0.7)"
                 : "rgba(255,0,0,0.7)";
-            ctx.fillRect(
-                width * 0.25,
-                height - barHeight,
-                width * 0.5,
-                barHeight,
-            );
+
+            // Draw the bar as segments to create a bend effect
+            const segments = 50;
+            const segmentHeight = barHeight / segments;
+
+            for (let i = 0; i < segments; i++) {
+                const nextY = height - (i + 1) * segmentHeight;
+
+                // Calculate horizontal offset - increases linearly with height
+                const progress =
+                    ((height - nextY) / height - bendStart) / (1 - bendStart);
+                const offset = spinAmount * maxBend * Math.max(0, progress);
+
+                const x = (width - barWidth) / 2 + offset;
+
+                ctx.fillRect(x, nextY, barWidth, segmentHeight + 1);
+            }
+
             ctx.strokeStyle = "black";
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, width, height);
@@ -259,9 +282,16 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         const lineComp = teeLine.addComponent(LineRendererComponent);
         lineComp.colorFunc = (_t: number) => new Color(0x00ff00);
         lineComp.thickness = 0.1;
+
+        // Create line perpendicular to aim direction
+        const perpVector = new THREE.Vector3(
+            -Math.cos(aimDirection),
+            0,
+            Math.sin(aimDirection),
+        );
         lineComp.points = [
-            new THREE.Vector3(-1.5, 0, 0),
-            new THREE.Vector3(1.5, 0, 0),
+            perpVector.clone().multiplyScalar(-1.5),
+            perpVector.clone().multiplyScalar(1.5),
         ];
     };
 
@@ -362,8 +392,14 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         spinEnergy += spin;
         spinBuffer.push(spin);
 
-        throwScript.storeVar("strength", energy);
-        throwScript.storeVar("spin", spinEnergy);
+        throwScript.storeVar(
+            "strength",
+            Math.min(energy, throwScript.getVar("maxStrength") as number),
+        );
+        throwScript.storeVar(
+            "spin",
+            Math.min(spinEnergy, throwScript.getVar("maxSpin") as number),
+        );
 
         if (energy < throwScript.getVar<number>("minThrowStrength")!) {
             validThrow = false;
