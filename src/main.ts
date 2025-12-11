@@ -40,7 +40,6 @@ import {
     type SupportedLanguage,
     translate,
 } from "./languageSettings";
-import { printToScreen } from "./utilities.ts";
 
 const ui = createUIManager();
 // expose for other modules (Inventory, tests, etc.)
@@ -154,21 +153,52 @@ const maxDeltas = 10;
 let physicsAccumulator = 0;
 
 // set a visible background color
-scene.background = new THREE.Color(0x87ceeb);
+// create a canvas-based gradient background (pink -> purple) and keep it in sync on resize
+const bgCanvas = document.createElement("canvas");
+const bgCtx = bgCanvas.getContext("2d")!;
+const bgTexture = new THREE.CanvasTexture(bgCanvas);
+bgTexture.minFilter = THREE.LinearFilter;
+bgTexture.magFilter = THREE.LinearFilter;
+scene.background = bgTexture;
 
-// add some ambient lighting so dark/shadowed areas are visible
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-scene.add(ambientLight);
-setMainCamera(setupCamera());
+function resizeBackgroundCanvas() {
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    bgCanvas.width = Math.floor(window.innerWidth * dpr);
+    bgCanvas.height = Math.floor(window.innerHeight * dpr);
+    bgCanvas.style.width = `${window.innerWidth}px`;
+    bgCanvas.style.height = `${window.innerHeight}px`;
+
+    const grad = bgCtx.createLinearGradient(0, 0, 0, bgCanvas.height);
+    grad.addColorStop(0, "#ff9a9e"); // pink (top)
+    grad.addColorStop(1, "#8e2de2"); // purple (bottom)
+
+    bgCtx.fillStyle = grad;
+    bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+    bgTexture.needsUpdate = true;
+}
+
+resizeBackgroundCanvas();
+window.addEventListener("resize", resizeBackgroundCanvas, { passive: true });
 
 // Initialize renderer before creating the level so renderer.domElement exists
 setRenderer(new THREE.WebGLRenderer());
-renderer.setClearColor(0x87ceeb, 1);
+renderer.toneMapping = THREE.CineonToneMapping;
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = "none";
 
-// Create FPS counter
+// add some ambient lighting so dark/shadowed areas are visible
+const ambientLight = new THREE.HemisphereLight(0xffffff, 0xbeeeee, 0.25);
+scene.add(ambientLight);
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(0, 10, -10);
+sun.target.position.set(-3, 0, -5);
+sun.castShadow = true;
+scene.add(sun);
+scene.add(sun.target);
+setMainCamera(setupCamera());
+
 createFPSCounter();
 
 const input = getSingletonComponent(Input);
@@ -186,39 +216,6 @@ ui.container.style.flexDirection = "row";
 ui.container.style.alignItems = "center";
 ui.container.style.justifyContent = "center";
 ui.container.style.gap = "12px";
-
-// const btnStyle: Partial<CSSStyleDeclaration> = {
-//     width: "56px",
-//     height: "56px",
-//     borderRadius: "28px",
-//     fontSize: "24px",
-//     display: "flex",
-//     alignItems: "center",
-//     justifyContent: "center",
-//     background: "rgba(32,32,32,0.95)", // darker fill for better contrast
-//     color: "#ffffff",
-//     border: "1px solid rgba(0,0,0,0.6)",
-//     boxShadow: "0 4px 10px rgba(0,0,0,0.35)",
-// };
-
-// ui.createButton(
-//     "btn-left",
-//     "◀",
-//     () => {
-//         console.debug("UI: left button clicked");
-//         rotateFollowLeft();
-//     },
-//     { ariaLabel: "Move Left", style: btnStyle },
-// );
-// ui.createButton(
-//     "btn-right",
-//     "▶",
-//     () => {
-//         console.debug("UI: right button clicked");
-//         rotateFollowRight();
-//     },
-//     { ariaLabel: "Move Right", style: btnStyle },
-// );
 
 //Escape menu: restart + light/dark toggle
 const escapeMenuOverlay = document.createElement("div");
@@ -711,22 +708,11 @@ function setupCamera(): MainCamera {
     return mainCam;
 }
 
-//Eslint told me this code was unused
-// find ball mesh/object (adjust to your API - example finds mesh with userData.type === 'ball')
-// let ballObject: THREE.Object3D | null = null;
-// scene.traverse((o) => {
-//     const ud = (o as unknown as { userData?: Record<string, unknown> })
-//         .userData;
-//     if (ud && ud.type === "ball") ballObject = o;
-// });
-
 function gameLoop() {
     const delta = renderClock.getDelta();
 
-    // Update FPS counter
     updateFPSCounter(delta);
 
-    // Update physics with fixed timestep
     physicsAccumulator += physicsClock.getDelta();
     // Cap the accumulator to avoid spiral of death after tab switch
     if (physicsAccumulator > maxPhysicsStepsPerFrame * world.timestep) {
