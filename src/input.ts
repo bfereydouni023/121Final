@@ -114,6 +114,16 @@ export class Input implements SingletonComponent {
     private tmpRayOrigin: THREE.Vector3 = new THREE.Vector3();
     private isDisposed = false;
 
+    private mouseKey(button: number): string {
+        return `Mouse${button}`;
+    }
+
+    private extractMouseButtonFromKey(key: string): number | null {
+        if (!key.startsWith("Mouse")) return null;
+        const button = Number(key.slice(5));
+        return Number.isNaN(button) ? null : button;
+    }
+
     private handleKeyDown = (event: KeyboardEvent) => {
         if (!this.keysDown.has(event.key)) {
             this.keysJustPressed.add(event.key);
@@ -136,6 +146,7 @@ export class Input implements SingletonComponent {
         if (payload.pointerType === "mouse") {
             this.updateMouseButtonState(event.button, true);
         }
+        this.keysDown.add(this.mouseKey(event.button));
         this.emit("pointerDown", payload);
         this.emitMouseEventFromPointer("pointerDown", payload);
     };
@@ -250,6 +261,32 @@ export class Input implements SingletonComponent {
 
     isKeyJustReleased(key: string): boolean {
         return this.keysJustReleased.has(key);
+    }
+
+    isMouseButtonPressed(button: number): boolean {
+        const key = this.mouseKey(button);
+        return this.keysDown.has(key);
+    }
+
+    isMouseButtonJustPressed(button: number): boolean {
+        const key = this.mouseKey(button);
+        return this.keysJustPressed.has(key);
+    }
+
+    isMouseButtonJustReleased(button: number): boolean {
+        const key = this.mouseKey(button);
+        return this.keysJustReleased.has(key);
+    }
+
+    getMouseButtonsDown(): number[] {
+        const buttons = new Set<number>();
+        for (const key of this.keysDown) {
+            const button = this.extractMouseButtonFromKey(key);
+            if (button !== null) {
+                buttons.add(button);
+            }
+        }
+        return Array.from(buttons).sort((a, b) => a - b);
     }
 
     getScreenMousePosition(): { x: number; y: number } {
@@ -435,7 +472,7 @@ export class Input implements SingletonComponent {
     }
 
     private updateMouseButtonState(button: number, pressed: boolean) {
-        const key = `Mouse${button}`;
+        const key = this.mouseKey(button);
         if (pressed) {
             if (!this.keysDown.has(key)) {
                 this.keysJustPressed.add(key);
@@ -451,9 +488,10 @@ export class Input implements SingletonComponent {
 
     private releaseAllMouseButtons() {
         for (const key of Array.from(this.keysDown)) {
-            if (!key.startsWith("Mouse")) continue;
+            const button = this.extractMouseButtonFromKey(key);
+            if (button === null) continue;
             this.keysDown.delete(key);
-            this.keysJustReleased.add(key);
+            this.keysJustReleased.add(this.mouseKey(button));
         }
     }
 
@@ -470,7 +508,7 @@ export class Input implements SingletonComponent {
     }
 
     raycastPhysicsFromMouse(
-        ev: MouseEvent,
+        ev: { clientX: number; clientY: number },
         renderer: THREE.WebGLRenderer,
         camera: THREE.Camera,
         options?: PhysicsRaycastOptions,
@@ -554,13 +592,13 @@ export class Input implements SingletonComponent {
         };
     }
 
-    private updatePointerTracking(event: MouseEvent | PointerEvent) {
+    private updatePointerTracking(event: { clientX: number; clientY: number }) {
         this.screenMousePosition.x = event.clientX;
         this.screenMousePosition.y = event.clientY;
     }
 
     private updatePointerRayFromMouse(
-        ev: MouseEvent,
+        ev: { clientX: number; clientY: number },
         renderer: THREE.WebGLRenderer,
         camera: THREE.Camera,
     ): boolean {

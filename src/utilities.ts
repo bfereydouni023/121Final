@@ -30,7 +30,7 @@ export function setupCameraTracking() {
     } else {
         followComponent.target = ball.getComponent(TransformComponent)!;
     }
-    followComponent.positionOffset = { x: 0, y: 15, z: 10 };
+    followComponent.positionOffset = { x: 0, y: 15, z: 15 };
     followComponent.rotationOffset = { x: -0.08, y: 0, z: 0, w: 0 };
     followComponent.updateMode = "physics";
     followComponent.rotationMode = "fixed";
@@ -155,4 +155,44 @@ export function rotateFollowLeft(stepRad = Math.PI / 12): void {
 }
 export function rotateFollowRight(stepRad = Math.PI / 12): void {
     adjustFollowRotationYaw(Math.abs(stepRad));
+}
+
+export function printToScreen(
+    message: string,
+    key: string = "default",
+    durationMs = 3000,
+) {
+    // Lazy initialize console div
+    let consoleDiv = document.getElementById("consoleOutput");
+    if (!consoleDiv) {
+        consoleDiv = document.createElement("div");
+        consoleDiv.id = "consoleOutput";
+        consoleDiv.style.position = "absolute";
+        consoleDiv.style.bottom = "10px";
+        consoleDiv.style.left = "10px";
+        consoleDiv.style.padding = "10px";
+        consoleDiv.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+        consoleDiv.style.color = "white";
+        consoleDiv.style.fontFamily = "monospace";
+        consoleDiv.style.zIndex = "1000";
+        document.body.appendChild(consoleDiv);
+    }
+    let textDiv = document.getElementById(`printToScreen-${key}`);
+    if (!textDiv) {
+        textDiv = document.createElement("div");
+        textDiv.id = `printToScreen-${key !== "default" ? key : ""}`;
+        consoleDiv.appendChild(textDiv);
+    } else {
+        // clear existing timeout if present
+        const timeoutRaw = textDiv.dataset.timeout;
+        if (timeoutRaw) {
+            const timeoutId = parseInt(timeoutRaw, 10);
+            clearTimeout(timeoutId);
+        }
+    }
+    textDiv.innerText = message;
+    textDiv.dataset.timeout = setTimeout(
+        () => consoleDiv!.removeChild(textDiv),
+        durationMs,
+    ).toString();
 }

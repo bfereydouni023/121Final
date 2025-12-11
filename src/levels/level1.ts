@@ -102,9 +102,9 @@ export class Level1 extends BaseLevel {
         //#endregion --------------------------------------------------------
 
         // Simple light
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(-25, 0, 75);
-        scene.add(light);
+        // const light = new THREE.DirectionalLight(0xffffff, 1);
+        // light.position.set(-25, 0, 75);
+        // scene.add(light);
     }
 
     protected onActivate(): void {
