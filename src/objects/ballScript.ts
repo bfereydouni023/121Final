@@ -22,6 +22,7 @@ import { printToScreen } from "../utilities";
 import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
 import { Color } from "three";
+import sandNormalTexture from "../../assets/textures/sand-normal.jpg";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -51,9 +52,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         new THREE.SphereGeometry(radius, 32, 24),
         new THREE.MeshToonMaterial({
             color: 0xffffff,
-            normalMap: new THREE.TextureLoader().load(
-                "../../assets/textures/sand-normal.jpg",
-            ),
+            normalMap: new THREE.TextureLoader().load(sandNormalTexture),
         }),
     );
     meshComp.mesh.castShadow = true;
