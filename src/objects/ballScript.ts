@@ -154,9 +154,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         }
     };
 
-    // Store aimDirection for throwScript to use (will be used when implementing actual throwing)
-    const _getAimDirection = () => aimDirection;
-
     normalScript.onClicked = (mouseEvent: MouseInputEvent) => {
         normalScript.enabled = false;
         aimScript.enabled = true;
@@ -269,8 +266,10 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     };
 
     const speedBuffer = new RingBuffer<number>(8);
-    const _spinBuffer = new RingBuffer<THREE.Vector3>(10);
+    const spinBuffer = new RingBuffer<number>(10);
     let energy = 0;
+    let spinEnergy = 0;
+
     throwScript.onPhysicsUpdate = () => {
         if (!dragging) {
             throwScript.enabled = false;
@@ -283,24 +282,59 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         const clampVelocity = (velocity: number) => {
             return Math.max(-maxVelocity, Math.min(maxVelocity, velocity / 5));
         };
+
         const transform = throwObj.getComponent(TransformComponent)!;
         const mousePos = input.getScreenMousePosition();
         const velocity = new THREE.Vector2(mousePos.x, mousePos.y).sub(
             lastMousePosition,
         );
         lastMousePosition.set(mousePos.x, mousePos.y);
-        const cursorPos = new THREE.Vector3(velocity.x, 0, velocity.y)
-            .multiplyScalar(sensitivity)
-            .add(
-                new THREE.Vector3(
-                    transform.position.x,
-                    dragStartWorld.y,
-                    transform.position.z,
-                ),
-            );
 
-        let position = cursorPos;
-        position.y = dragStartWorld.y;
+        // Get aim direction as a vector
+        const aimVector = new THREE.Vector3(
+            Math.sin(aimDirection),
+            0,
+            Math.cos(aimDirection),
+        ).normalize();
+
+        // Get perpendicular vector for spin (rotate 90 degrees) - will be used for spin application
+        const _perpVector = new THREE.Vector3(
+            -aimVector.z,
+            0,
+            aimVector.x,
+        ).normalize();
+
+        // Project mouse velocity onto aim direction (forward/backward)
+        // Vertical mouse movement = forward/backward along aim line
+        const forwardComponent = -velocity.y * sensitivity;
+
+        // Horizontal mouse movement = perpendicular (spin)
+        const spinComponent = velocity.x * sensitivity;
+
+        // Update position along aim direction only
+        const currentOffset = new THREE.Vector3()
+            .copy(transform.position)
+            .sub(dragStartWorld);
+
+        // Project current offset onto aim direction to get distance along line
+        const distanceAlongAim = currentOffset.dot(aimVector);
+
+        // Add forward movement
+        const newDistanceAlongAim = distanceAlongAim - forwardComponent;
+
+        // Clamp to max distance
+        const clampedDistance = Math.max(
+            -maxDistance,
+            Math.min(maxDistance, newDistanceAlongAim),
+        );
+
+        // Calculate new position along the aim line
+        const newPosition = new THREE.Vector3()
+            .copy(dragStartWorld)
+            .add(aimVector.clone().multiplyScalar(clampedDistance));
+        newPosition.y = dragStartWorld.y;
+
+        // Check for collision
         const collision = checkBallPlacement(transform, dragStartWorld, rbComp);
         if (collision) {
             validThrow = false;
@@ -308,30 +342,29 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             validThrow = true;
         }
 
-        if (
-            new THREE.Vector3().copy(position).distanceTo(dragStartWorld) >
-            maxDistance
-        ) {
-            // clamp to max distance
-            const dir = new THREE.Vector3()
-                .copy(position)
-                .sub(dragStartWorld)
-                .normalize();
-            position = new THREE.Vector3()
-                .copy(dragStartWorld)
-                .add(dir.multiplyScalar(maxDistance));
-        }
-        transform.position = { ...position };
+        transform.position = { ...newPosition };
+
+        // Track speed energy (forward/backward movement)
         if (speedBuffer.size() === speedBuffer.capacity()) {
             const vel = speedBuffer.get(0)!;
             energy -= vel;
         }
-        const speed = clampVelocity(
-            velocity.lengthSq() * sensitivity * -Math.sign(velocity.y),
-        );
+        const speed = clampVelocity(forwardComponent * 50);
         energy += speed;
         speedBuffer.push(speed);
+
+        // Track spin energy (perpendicular movement)
+        if (spinBuffer.size() === spinBuffer.capacity()) {
+            const oldSpin = spinBuffer.get(0)!;
+            spinEnergy -= oldSpin;
+        }
+        const spin = clampVelocity(spinComponent * 50);
+        spinEnergy += spin;
+        spinBuffer.push(spin);
+
         throwScript.storeVar("strength", energy);
+        throwScript.storeVar("spin", spinEnergy);
+
         if (energy < throwScript.getVar<number>("minThrowStrength")!) {
             validThrow = false;
         }
@@ -349,10 +382,8 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             ball.getComponent(TransformComponent)!.position = {
                 ...dragStartWorld,
             };
-            // Return to aim mode if throw wasn't valid
             aimScript.enabled = true;
         } else {
-            // Valid throw - disable both aim and throw scripts, enable normal script
             // TODO: Apply the throw force here in the future
             normalScript.enabled = true;
         }
@@ -363,13 +394,14 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             destroyGameObject(teeLine);
         }
         speedBuffer.clear();
+        spinBuffer.clear();
         energy = 0;
+        spinEnergy = 0;
     };
 
     function onPointerUp(ev: PointerInputEvent) {
-        if (!throwScript.enabled || ev.pointerId !== activePointerId) return;
-        throwScript.enabled = false;
-        console.log("Throw released");
+        if (ev.pointerId !== activePointerId) return;
+        dragging = false;
     }
 
     input.addEventListener("pointerCancel", (ev: PointerInputEvent) => {
@@ -385,7 +417,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         input.addEventListener("pointerLeave", onPointerUp),
     ];
 
-    // Hook to clean up listeners if the script/component system supports disposal
     normalScript.onDispose = () => {
         removeListeners.forEach((dispose) => dispose());
     };
