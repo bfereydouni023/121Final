@@ -22,7 +22,6 @@ import { printToScreen } from "../utilities";
 import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
 import { Color } from "three";
-import { max } from "three/tsl";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -79,11 +78,99 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     };
 
     // Script / behavior component - adds drag-to-launch interactions
-    const script = ball.addComponent(ScriptComponent);
-    script.onPhysicsUpdate = () =>
+    const normalScript = ball.addComponent(ScriptComponent);
+    normalScript.onPhysicsUpdate = () =>
         applyRollingDynamics(rbComp, ballState, radius);
 
+    // Aim script - allows aiming before throwing
+    const aimScript = ball.addComponent(ScriptComponent);
+    aimScript.enabled = false;
+    let aimDirection = 0; // angle in radians
+    let aimArrow: GameObject | null = null;
+    const aimRotationSpeed = 0.05; // radians per frame
+
+    aimScript.onEnable = () => {
+        // Create 3D arrow to show aim direction
+        aimArrow = createGameObject("aimArrow");
+        const arrowTransform = aimArrow.addComponent(TransformComponent);
+        const ballPos = ball.getComponent(TransformComponent)!.position;
+        arrowTransform.position = {
+            x: ballPos.x,
+            y: ballPos.y + 2,
+            z: ballPos.z,
+        };
+
+        // Create arrow mesh
+        const arrowMesh = aimArrow.addComponent(MeshComponent);
+        const arrowGeometry = new THREE.ConeGeometry(0.3, 1.5, 8);
+        arrowGeometry.rotateX(-Math.PI / 2); // Point along Z axis
+        const arrowMaterial = new THREE.MeshToonMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.8,
+        });
+        arrowMesh.mesh = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        scene.add(arrowMesh.mesh);
+
+        // Reset aim direction to forward
+        aimDirection = 0;
+    };
+
+    aimScript.onPhysicsUpdate = () => {
+        // Check for left/right arrow keys or A/D keys
+        if (input.isKeyPressed("ArrowLeft") || input.isKeyPressed("a")) {
+            aimDirection += aimRotationSpeed;
+        }
+        if (input.isKeyPressed("ArrowRight") || input.isKeyPressed("d")) {
+            aimDirection -= aimRotationSpeed;
+        }
+
+        // Update arrow rotation and position
+        if (aimArrow) {
+            const arrowTransform = aimArrow.getComponent(TransformComponent)!;
+            const ballPos = ball.getComponent(TransformComponent)!.position;
+            arrowTransform.position = {
+                x: ballPos.x,
+                y: ballPos.y + 2,
+                z: ballPos.z,
+            };
+
+            // Convert euler angle to quaternion for rotation
+            const quaternion = new THREE.Quaternion();
+            quaternion.setFromEuler(new THREE.Euler(0, aimDirection, 0, "XYZ"));
+            arrowTransform.rotation = {
+                x: quaternion.x,
+                y: quaternion.y,
+                z: quaternion.z,
+                w: quaternion.w,
+            };
+        }
+    };
+
+    aimScript.onDisable = () => {
+        if (aimArrow) {
+            destroyGameObject(aimArrow);
+            aimArrow = null;
+        }
+    };
+
+    // Store aimDirection for throwScript to use (will be used when implementing actual throwing)
+    const _getAimDirection = () => aimDirection;
+
+    normalScript.onClicked = (mouseEvent: MouseInputEvent) => {
+        normalScript.enabled = false;
+        aimScript.enabled = true;
+        activePointerId = mouseEvent.pointerId;
+        lastMousePosition.set(mouseEvent.clientX, mouseEvent.clientY);
+    };
+
+    aimScript.onClicked = (_mouseEvent: MouseInputEvent) => {
+        aimScript.enabled = false;
+        throwScript.enabled = true;
+    };
+
     const throwScript = ball.addComponent(ScriptComponent);
+    throwScript.enabled = false;
     let dragging = false;
     let validThrow = false;
     const dragStartWorld = new THREE.Vector3();
@@ -92,21 +179,20 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     let throwIndicator: GameObject | null = null;
     let teeLine: GameObject | null = null;
     const lastMousePosition = new THREE.Vector2();
-    script.storeVar("strength", 0);
-    script.storeVar("maxStrength", 100);
-    script.storeVar(
+    throwScript.storeVar("strength", 0);
+    throwScript.storeVar("maxStrength", 100);
+    throwScript.storeVar(
         "minThrowStrength",
-        0.2 * script.getVar<number>("maxStrength")!,
+        0.2 * throwScript.getVar<number>("maxStrength")!,
     );
 
-    throwScript.onClicked = (mouseEvent: MouseInputEvent) => {
-        document.body.style.cursor = "none";
+    throwScript.onEnable = () => {
         dragging = true;
-        activePointerId = mouseEvent.pointerId;
+        validThrow = false;
+        document.body.style.cursor = "none";
         dragStartWorld.copy(
             new THREE.Vector3().copy(rbComp.rigidbody.translation()).clone(),
         );
-        lastMousePosition.set(mouseEvent.clientX, mouseEvent.clientY);
         ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
             { x: 0, y: 0, z: 0 },
             true,
@@ -145,9 +231,10 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             ctx.fillStyle = "rgba(0,0,0,0.5)";
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = "white";
-            const strength = script.getVar("strength") as number;
-            const maxStrength = script.getVar("maxStrength") as number;
-            const minThrowStrength = script.getVar<number>("minThrowStrength")!;
+            const strength = throwScript.getVar("strength") as number;
+            const maxStrength = throwScript.getVar("maxStrength") as number;
+            const minThrowStrength =
+                throwScript.getVar<number>("minThrowStrength")!;
             const minPowerHeight = (minThrowStrength / maxStrength) * height;
             ctx.fillStyle = "rgba(255,0,0,0.25)";
             ctx.fillRect(0, height - minPowerHeight, width / 2, 5);
@@ -182,10 +269,13 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     };
 
     const speedBuffer = new RingBuffer<number>(8);
-    const spinBuffer = new RingBuffer<THREE.Vector3>(10);
+    const _spinBuffer = new RingBuffer<THREE.Vector3>(10);
     let energy = 0;
     throwScript.onPhysicsUpdate = () => {
-        if (!dragging) return;
+        if (!dragging) {
+            throwScript.enabled = false;
+            return;
+        }
         if (!throwObj) return;
         const sensitivity = 1 / 30;
         const maxDistance = 6;
@@ -241,16 +331,14 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         );
         energy += speed;
         speedBuffer.push(speed);
-        script.storeVar("strength", energy);
-        if (energy < script.getVar<number>("minThrowStrength")!) {
+        throwScript.storeVar("strength", energy);
+        if (energy < throwScript.getVar<number>("minThrowStrength")!) {
             validThrow = false;
         }
     };
 
-    function onPointerUp(ev: PointerInputEvent) {
+    throwScript.onDisable = () => {
         document.body.style.cursor = "default";
-        if (!dragging || ev.pointerId !== activePointerId) return;
-        dragging = false;
         activePointerId = null;
         rbComp.rigidbody.setEnabled(true);
         ball.getComponent(FollowComponent)!.target = null;
@@ -261,6 +349,12 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             ball.getComponent(TransformComponent)!.position = {
                 ...dragStartWorld,
             };
+            // Return to aim mode if throw wasn't valid
+            aimScript.enabled = true;
+        } else {
+            // Valid throw - disable both aim and throw scripts, enable normal script
+            // TODO: Apply the throw force here in the future
+            normalScript.enabled = true;
         }
         if (throwIndicator) {
             destroyGameObject(throwIndicator);
@@ -270,6 +364,12 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         }
         speedBuffer.clear();
         energy = 0;
+    };
+
+    function onPointerUp(ev: PointerInputEvent) {
+        if (!throwScript.enabled || ev.pointerId !== activePointerId) return;
+        throwScript.enabled = false;
+        console.log("Throw released");
     }
 
     input.addEventListener("pointerCancel", (ev: PointerInputEvent) => {
@@ -286,7 +386,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     ];
 
     // Hook to clean up listeners if the script/component system supports disposal
-    script.onDispose = () => {
+    normalScript.onDispose = () => {
         removeListeners.forEach((dispose) => dispose());
     };
     return ball;
