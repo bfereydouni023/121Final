@@ -22,6 +22,7 @@ import { printToScreen } from "../utilities";
 import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
 import { Color } from "three";
+import type { Vector } from "three/examples/jsm/Addons.js";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -70,7 +71,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     ball.addComponent(FollowComponent);
 
     // Custom tracking for spin and physics state
-    const ballState = {
+    const ballState: BallState = {
         angularVelocity: new THREE.Vector3(0, 0, 0), // spin axis and magnitude
         lastFrameVelocity: new THREE.Vector3(0, 0, 0),
         isGrounded: false,
@@ -114,6 +115,19 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
 
         // Reset aim direction to forward
         aimDirection = 0;
+
+        ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
+        ball.getComponent(RigidbodyComponent)!.rigidbody.setAngvel(
+            { x: 0, y: 0, z: 0 },
+            true,
+        );
+        ballState.angularVelocity.set(0, 0, 0);
+        ballState.framesSinceLastVelocity = 0;
+        ballState.lastFrameVelocity.set(0, 0, 0);
+        rbComp.rigidbody.setEnabled(false);
     };
 
     aimScript.onPhysicsUpdate = () => {
@@ -154,16 +168,16 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         }
     };
 
-    normalScript.onClicked = (mouseEvent: MouseInputEvent) => {
+    normalScript.onClicked = (_mouseEvent: MouseInputEvent) => {
         normalScript.enabled = false;
         aimScript.enabled = true;
-        activePointerId = mouseEvent.pointerId;
-        lastMousePosition.set(mouseEvent.clientX, mouseEvent.clientY);
     };
 
-    aimScript.onClicked = (_mouseEvent: MouseInputEvent) => {
+    aimScript.onClicked = (mouseEvent: MouseInputEvent) => {
         aimScript.enabled = false;
         throwScript.enabled = true;
+        activePointerId = mouseEvent.pointerId;
+        lastMousePosition.set(mouseEvent.clientX, mouseEvent.clientY);
     };
 
     const throwScript = ball.addComponent(ScriptComponent);
@@ -192,18 +206,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         dragStartWorld.copy(
             new THREE.Vector3().copy(rbComp.rigidbody.translation()).clone(),
         );
-        ball.getComponent(RigidbodyComponent)!.rigidbody.setLinvel(
-            { x: 0, y: 0, z: 0 },
-            true,
-        );
-        ball.getComponent(RigidbodyComponent)!.rigidbody.setAngvel(
-            { x: 0, y: 0, z: 0 },
-            true,
-        );
-        ballState.angularVelocity.set(0, 0, 0);
-        ballState.framesSinceLastVelocity = 0;
-        ballState.lastFrameVelocity.set(0, 0, 0);
-        rbComp.rigidbody.setEnabled(false);
+
         mainCamera.gameObject.getComponent(FollowComponent)!.target = null;
 
         throwObj = createGameObject("throwIndicator");
@@ -327,13 +330,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             Math.cos(aimDirection),
         ).normalize();
 
-        // Get perpendicular vector for spin (rotate 90 degrees) - will be used for spin application
-        const _perpVector = new THREE.Vector3(
-            -aimVector.z,
-            0,
-            aimVector.x,
-        ).normalize();
-
         // Project mouse velocity onto aim direction (forward/backward)
         // Vertical mouse movement = forward/backward along aim line
         const forwardComponent = -velocity.y * sensitivity;
@@ -420,7 +416,18 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             };
             aimScript.enabled = true;
         } else {
-            // TODO: Apply the throw force here in the future
+            const aimVector = new THREE.Vector3(
+                Math.sin(aimDirection),
+                0,
+                Math.cos(aimDirection),
+            ).normalize();
+            applyThrowForce(
+                rbComp,
+                throwScript.getVar<number>("strength")!,
+                throwScript.getVar<number>("spin")!,
+                aimVector,
+                ballState,
+            );
             normalScript.enabled = true;
         }
         if (throwIndicator) {
@@ -486,12 +493,7 @@ function checkBallPlacement(
 
 function applyRollingDynamics(
     rbComp: RigidbodyComponent,
-    ballState: {
-        angularVelocity: THREE.Vector3; // spin axis and magnitude
-        lastFrameVelocity: THREE.Vector3;
-        isGrounded: boolean;
-        framesSinceLastVelocity: number;
-    },
+    ballState: BallState,
     radius: number,
 ): void {
     // Ball physics constants (bowling ball like behavior)
@@ -571,9 +573,49 @@ function applyRollingDynamics(
     // Apply damping to spin
     ballState.angularVelocity.multiplyScalar(spinDampingCoeff);
 
+    rbComp.rigidbody.setAngvel(
+        {
+            x: ballState.angularVelocity.x,
+            y: ballState.angularVelocity.y,
+            z: ballState.angularVelocity.z,
+        },
+        true,
+    );
+
     // Sleep ball if very slow to prevent endless sliding
     if (linSpeed < 0.05 && spinMagnitude < 0.05) {
         rbComp.rigidbody.setLinvel({ x: 0, y: 0, z: 0 }, true);
         ballState.angularVelocity.set(0, 0, 0);
     }
 }
+
+function applyThrowForce(
+    rbComp: RigidbodyComponent,
+    strength: number,
+    spin: number,
+    aimDirection: THREE.Vector3,
+    ballState: BallState,
+) {
+    // Apply linear velocity in the aim direction
+    const throwVelocity = aimDirection
+        .clone()
+        .normalize()
+        .multiplyScalar(-strength);
+    ballState.angularVelocity.set(0, 0, 0); // reset spin
+
+    // Apply spin around vertical axis
+    const spinAxis = new THREE.Vector3(0, 1, 0); // Y axis
+    const spinAngularVel = spinAxis.multiplyScalar(spin / 1); // rad/s
+    ballState.angularVelocity.copy(spinAngularVel);
+    rbComp.rigidbody.setLinvel(
+        { x: throwVelocity.x, y: throwVelocity.y, z: throwVelocity.z },
+        true,
+    );
+}
+
+type BallState = {
+    angularVelocity: THREE.Vector3; // spin axis and magnitude
+    lastFrameVelocity: THREE.Vector3;
+    isGrounded: boolean;
+    framesSinceLastVelocity: number;
+};
