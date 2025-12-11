@@ -180,7 +180,7 @@ export function printToScreen(
     let textDiv = document.getElementById(`printToScreen-${key}`);
     if (!textDiv) {
         textDiv = document.createElement("div");
-        textDiv.id = `printToScreen-${key}`;
+        textDiv.id = `printToScreen-${key !== "default" ? key : ""}`;
         consoleDiv.appendChild(textDiv);
     } else {
         // clear existing timeout if present
