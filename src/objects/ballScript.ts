@@ -16,13 +16,12 @@ import {
     BillboardUIComponent,
     LineRendererComponent,
 } from "../components";
-import { mainCamera } from "../globals";
+import { mainCamera, renderer } from "../globals";
 import { world } from "../globals";
 import { printToScreen } from "../utilities";
 import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
 import { Color } from "three";
-import type { Vector } from "three/examples/jsm/Addons.js";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -88,7 +87,6 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     aimScript.enabled = false;
     let aimDirection = 0; // angle in radians
     let aimArrow: GameObject | null = null;
-    const aimRotationSpeed = 0.05; // radians per frame
 
     aimScript.onEnable = () => {
         // Create 3D arrow to show aim direction
@@ -127,16 +125,24 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         ballState.angularVelocity.set(0, 0, 0);
         ballState.framesSinceLastVelocity = 0;
         ballState.lastFrameVelocity.set(0, 0, 0);
-        rbComp.rigidbody.setEnabled(false);
+        // rbComp.rigidbody.setEnabled();
     };
 
     aimScript.onPhysicsUpdate = () => {
-        // Check for left/right arrow keys or A/D keys
-        if (input.isKeyPressed("ArrowLeft") || input.isKeyPressed("a")) {
-            aimDirection += aimRotationSpeed;
-        }
-        if (input.isKeyPressed("ArrowRight") || input.isKeyPressed("d")) {
-            aimDirection -= aimRotationSpeed;
+        const mouseScreenPos = input.getScreenMousePosition();
+        const hit = input.raycastPhysicsFromMouse(
+            { clientX: mouseScreenPos.x, clientY: mouseScreenPos.y },
+            renderer,
+            mainCamera,
+            { excludeRigidBody: rbComp.rigidbody },
+        );
+        if (hit) {
+            const ballPos = ball.getComponent(TransformComponent)!.position;
+            const dirToMouse = new THREE.Vector3()
+                .subVectors(hit.point, ballPos)
+                .setY(0)
+                .normalize();
+            aimDirection = Math.atan2(-dirToMouse.x, -dirToMouse.z);
         }
 
         // Update arrow rotation and position
