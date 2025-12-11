@@ -49,12 +49,14 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     const radius = 1.5;
     meshComp.mesh = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 32, 24),
-        new THREE.MeshStandardMaterial({
-            color: 0xff5500,
-            metalness: 0.2,
-            roughness: 0.6,
+        new THREE.MeshToonMaterial({
+            color: 0xffffff,
+            normalMap: new THREE.TextureLoader().load(
+                "../../assets/textures/sand-normal.jpg",
+            ),
         }),
     );
+    meshComp.mesh.castShadow = true;
     scene.add(meshComp.mesh);
 
     // Physics
