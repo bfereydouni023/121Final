@@ -121,6 +121,13 @@ function showVictoryOverlay() {
     }
 }
 
+function createTopBanner(): void {
+    const banner = document.createElement("div");
+    banner.className = "top-banner";
+    banner.textContent = "Ben Fereydouni(Part 2)";
+    document.body.appendChild(banner);
+}
+
 function createFPSCounter(): void {
     fpsElement = document.createElement("div");
     fpsElement.style.position = "absolute";
@@ -166,6 +173,9 @@ renderer.setClearColor(0x87ceeb, 1);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = "none";
+
+// Create top banner text
+createTopBanner();
 
 // Create FPS counter
 createFPSCounter();
