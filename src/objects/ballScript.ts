@@ -453,6 +453,16 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         dragging = false;
     }
 
+    function onPointerDown(ev: PointerInputEvent) {
+        if (
+            aimScript.enabled &&
+            ev.pointerType === "mouse" &&
+            ev.button === 0
+        ) {
+            aimScript.onClicked?.(ev as MouseInputEvent);
+        }
+    }
+
     input.addEventListener("pointerCancel", (ev: PointerInputEvent) => {
         onPointerUp(ev);
     });
@@ -461,6 +471,7 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     });
 
     const removeListeners = [
+        input.addEventListener("pointerDown", onPointerDown),
         input.addEventListener("pointerUp", onPointerUp),
         input.addEventListener("pointerCancel", onPointerUp),
         input.addEventListener("pointerLeave", onPointerUp),
@@ -505,7 +516,8 @@ function applyRollingDynamics(
     // Ball physics constants (bowling ball like behavior)
     const rollingFrictionCoeff = 0.015; // rolling resistance coefficient
     const spinDampingCoeff = 0.98; // spin damping per frame
-    const spinToVelCoupling = 0.5; // how much spin affects linear velocity (0-1)
+    const spinSlipFriction = 0.8; // friction coefficient that couples spin to linear velocity
+
     // Cast ray downward to check if grounded
     const hit = world.castRayAndGetNormal(
         new RAPIER.Ray(rbComp.rigidbody.translation(), {
@@ -528,7 +540,7 @@ function applyRollingDynamics(
     }
 
     // Get current linear velocity
-    const linVel = rbComp.rigidbody.linvel();
+    let linVel = rbComp.rigidbody.linvel();
     const linVelVec = new THREE.Vector3(linVel.x, linVel.y, linVel.z);
     const linSpeed = linVelVec.length();
     printToScreen(`Speed: ${linSpeed.toFixed(2)} m/s`, "speed", 1000);
@@ -538,31 +550,35 @@ function applyRollingDynamics(
         1000,
     );
 
-    // Calculate ideal rolling velocity from spin (v = ω × r)
-    // For a ball spinning with angular velocity ω, surface velocity should be ω*r
+    // Get spin magnitude
     const spinMagnitude = ballState.angularVelocity.length();
-    const idealLinearSpeed = spinMagnitude * radius;
 
-    // Blend current velocity toward spin-induced velocity
-    if (spinMagnitude > 0.01) {
-        // Get direction perpendicular to spin axis (velocity should be perpendicular to spin)
-        const velDir =
-            linVelVec.length() > 0.01
-                ? linVelVec.clone().normalize()
-                : new THREE.Vector3(1, 0, 0);
+    // Calculate surface velocity induced by spin: v_spin = ω × r
+    // For perpendicular spin, the induced velocity is perpendicular to spin axis
+    if (spinMagnitude > 0.01 && linSpeed > 0.001) {
+        const velDir = linVelVec.clone().normalize();
 
-        // Apply spin coupling effect
-        const targetVel = velDir
-            .clone()
-            .multiplyScalar(
-                linSpeed * (1 - spinToVelCoupling) +
-                    idealLinearSpeed * spinToVelCoupling,
-            );
+        // Calculate the velocity that would result from pure rolling (v = ω * r)
+        const pureRollingSpeed = spinMagnitude * radius;
 
-        rbComp.rigidbody.setLinvel(targetVel, true);
+        // Friction acts to reduce slip between the spin-induced motion and actual motion
+        // This causes spin to gradually transfer to linear motion (like English in pool)
+        const speedDifference = pureRollingSpeed - linSpeed;
+
+        // Apply spin-to-linear coupling: friction accelerates ball in direction of spin effect
+        if (Math.abs(speedDifference) > 0.01) {
+            const slipFrictionAccel = speedDifference * spinSlipFriction;
+            const newSpeed = linSpeed + slipFrictionAccel;
+
+            // Update linear velocity, maintaining direction
+            const newVel = velDir.clone().multiplyScalar(newSpeed);
+            rbComp.rigidbody.setLinvel(newVel, true);
+            linVel = rbComp.rigidbody.linvel();
+            linVelVec.set(linVel.x, linVel.y, linVel.z);
+        }
     }
 
-    // Apply rolling friction (rolling resistance)
+    // Apply rolling friction (rolling resistance) - reduces overall speed
     if (linSpeed > 0.01) {
         const frictionCoeff = rollingFrictionCoeff * 9.81; // rolling resistance deceleration
         const frictionAccel = Math.max(
@@ -602,6 +618,8 @@ function applyThrowForce(
     aimDirection: THREE.Vector3,
     ballState: BallState,
 ) {
+    const throwStrengthMod = 0.35;
+    strength *= throwStrengthMod;
     // Apply linear velocity in the aim direction
     const throwVelocity = aimDirection
         .clone()
