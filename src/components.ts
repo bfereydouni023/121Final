@@ -424,6 +424,17 @@ export class FollowComponent extends BaseComponent {
 
 export class ScriptComponent extends BaseComponent {
     private variables: Map<string, unknown> = new Map<string, unknown>();
+    private _enabled: boolean = true;
+    public get enabled(): boolean {
+        return this._enabled;
+    }
+    public set enabled(value: boolean) {
+        if (this._enabled === value) return;
+        if (!value) this.onDisable?.();
+        else this.onEnable?.();
+        this._enabled = value;
+    }
+
     public onCreate?(): void;
     public onStart?(): void;
     public onUpdate?(deltaTime: number): void;
@@ -435,12 +446,15 @@ export class ScriptComponent extends BaseComponent {
     public onDispose?(): void;
     public onCollisionEnter?(other: GameObject): void;
     public onCollisionExit?(other: GameObject): void;
+    public onEnable?(): void;
+    public onDisable?(): void;
     private hasStarted: boolean = false;
 
     create(): void {
         this.onCreate?.();
     }
     renderUpdate(_deltaTime: number): void {
+        if (!this.enabled) return;
         if (!this.hasStarted) {
             this.onStart?.();
             this.hasStarted = true;
@@ -448,6 +462,7 @@ export class ScriptComponent extends BaseComponent {
         this.onUpdate?.(_deltaTime);
     }
     physicsUpdate(_deltaTime: number): void {
+        if (!this.enabled) return;
         this.onPhysicsUpdate?.(_deltaTime);
     }
     dispose(): void {

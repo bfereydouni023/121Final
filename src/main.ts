@@ -669,10 +669,11 @@ input.addEventListener("mouseDown", (mouseEvent) => {
     const go = hit?.gameObject;
     if (!go) return;
 
-    const scripts = go.getComponents(ScriptComponent);
-    scripts.forEach((script) => {
-        script.onClicked?.(mouseEvent);
-    });
+    go.getComponents(ScriptComponent)
+        .filter((s) => typeof s.onClicked === "function" && s.enabled)
+        .forEach((script) => {
+            script.onClicked!(mouseEvent);
+        });
 });
 
 let levelToSwap: string | null = null;
