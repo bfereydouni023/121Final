@@ -454,11 +454,11 @@ export class ScriptComponent extends BaseComponent {
         this.onDispose?.();
     }
 
-    public storeVariable<T>(key: string, value: T): void {
+    public storeVar<T>(key: string, value: T): void {
         this.variables.set(key, value);
     }
 
-    public retrieveVariable<T>(key: string): T | undefined {
+    public getVar<T>(key: string): T | undefined {
         return this.variables.get(key) as T | undefined;
     }
 }

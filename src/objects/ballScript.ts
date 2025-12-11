@@ -22,6 +22,7 @@ import { printToScreen } from "../utilities";
 import { RingBuffer } from "../ringbuffer";
 import type { GameObject } from "../types";
 import { Color } from "three";
+import { max } from "three/tsl";
 
 /**
  * Create a ball GameObject, add mesh + physics, and attach a ScriptComponent
@@ -91,8 +92,12 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
     let throwIndicator: GameObject | null = null;
     let teeLine: GameObject | null = null;
     const lastMousePosition = new THREE.Vector2();
-    script.storeVariable("strength", 0);
-    script.storeVariable("maxStrength", 100);
+    script.storeVar("strength", 0);
+    script.storeVar("maxStrength", 100);
+    script.storeVar(
+        "minThrowStrength",
+        0.2 * script.getVar<number>("maxStrength")!,
+    );
 
     throwScript.onClicked = (mouseEvent: MouseInputEvent) => {
         document.body.style.cursor = "none";
@@ -140,11 +145,16 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
             ctx.fillStyle = "rgba(0,0,0,0.5)";
             ctx.fillRect(0, 0, width, height);
             ctx.fillStyle = "white";
-            const strength = script.retrieveVariable("strength") as number;
-            const maxStrength = script.retrieveVariable(
-                "maxStrength",
-            ) as number;
+            const strength = script.getVar("strength") as number;
+            const maxStrength = script.getVar("maxStrength") as number;
+            const minThrowStrength = script.getVar<number>("minThrowStrength")!;
+            const minPowerHeight = (minThrowStrength / maxStrength) * height;
+            ctx.fillStyle = "rgba(255,0,0,0.25)";
+            ctx.fillRect(0, height - minPowerHeight, width / 2, 5);
             const barHeight = (strength / maxStrength) * height;
+            ctx.fillStyle = validThrow
+                ? "rgba(0,255,0,0.7)"
+                : "rgba(255,0,0,0.7)";
             ctx.fillRect(
                 width * 0.25,
                 height - barHeight,
@@ -171,16 +181,17 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         ];
     };
 
-    const speedBuffer = new RingBuffer<number>(10);
+    const speedBuffer = new RingBuffer<number>(8);
+    const spinBuffer = new RingBuffer<THREE.Vector3>(10);
     let energy = 0;
     throwScript.onPhysicsUpdate = () => {
         if (!dragging) return;
         if (!throwObj) return;
-        const sensitivity = 1 / 25;
+        const sensitivity = 1 / 30;
         const maxDistance = 6;
-        const maxVelocity = 15;
+        const maxVelocity = 50;
         const clampVelocity = (velocity: number) => {
-            return Math.max(-maxVelocity, Math.min(maxVelocity, velocity));
+            return Math.max(-maxVelocity, Math.min(maxVelocity, velocity / 5));
         };
         const transform = throwObj.getComponent(TransformComponent)!;
         const mousePos = input.getScreenMousePosition();
@@ -230,8 +241,10 @@ export function createBall(scene: THREE.Scene, position: THREE.Vector3) {
         );
         energy += speed;
         speedBuffer.push(speed);
-        script.storeVariable("strength", energy);
-        printToScreen(energy.toFixed(2), "energy", 1000);
+        script.storeVar("strength", energy);
+        if (energy < script.getVar<number>("minThrowStrength")!) {
+            validThrow = false;
+        }
     };
 
     function onPointerUp(ev: PointerInputEvent) {
